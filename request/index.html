@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#15131F">
+<link rel="icon" href="/images/icon.png">
+<title>Request a song</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,300..800&display=swap" rel="stylesheet">
+<script src="/firebase-config.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --house:#15131F;--surface:#1E1B2B;--raised:#29253A;--line:#383250;
+  --text:#F3EEE4;--muted:#A9A2BC;--spot:#FFF1D6;--spot-glow:rgba(255,226,170,.20);--gel:#FF6F96;--ok:#86DDB5;
+  --r-sm:8px;--r-md:14px;
+}
+html{background:var(--house);overscroll-behavior:none}
+body{background:var(--house);color:var(--text);font-family:'Bricolage Grotesque',system-ui,sans-serif;font-size:16px;line-height:1.45;font-variation-settings:"opsz" 14;min-height:100vh}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--spot);outline-offset:2px}
+[hidden]{display:none!important}
+
+.wrap{max-width:520px;margin:0 auto;padding-bottom:calc(40px + env(safe-area-inset-bottom))}
+
+/* HEADER */
+.head{position:sticky;top:0;z-index:10;background:rgba(21,19,31,.94);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);padding:calc(env(safe-area-inset-top) + 20px) 20px 14px;border-bottom:1px solid var(--line)}
+.back{display:inline-flex;align-items:center;gap:4px;color:var(--muted);text-decoration:none;font-size:15px;margin-bottom:10px}
+.head h1{font-size:32px;font-weight:800;font-variation-settings:"opsz" 96,"wdth" 78;line-height:.95;letter-spacing:-.01em}
+.head .sub{color:var(--muted);font-size:15px;margin-top:4px}
+.search{position:relative;margin-top:14px}
+.search input{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);padding:12px 40px 12px 14px;font-size:16px;outline:none}
+.search input:focus{border-color:var(--spot)}
+.search input::placeholder{color:var(--muted)}
+.clear{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);width:34px;height:34px;border-radius:50%;cursor:pointer}
+.chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:12px -20px 0;padding:0 20px 2px}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex-shrink:0;border:none;background:var(--surface);color:var(--muted);padding:8px 14px;border-radius:999px;font-size:15px;font-weight:500;cursor:pointer;white-space:nowrap}
+.chip.on{background:var(--spot);color:var(--house)}
+.chip-gap{flex-shrink:0;width:1px;background:var(--line);margin:6px 2px}
+
+/* LIST */
+.list{padding:6px 20px 0}
+.count{color:var(--muted);font-size:14px;padding:12px 0 4px}
+.song{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--line)}
+.song:last-child{border-bottom:none}
+.song .main{flex:1;min-width:0}
+.song .t{font-size:18px;font-weight:600;line-height:1.2}
+.song .a{color:var(--muted);font-size:15px}
+.song .x{color:var(--gel);font-size:14px;font-weight:600;margin-left:6px}
+.song.played .t{color:var(--muted);text-decoration:line-through;text-decoration-color:rgba(169,162,188,.5)}
+.req-btn{flex-shrink:0;border:none;border-radius:999px;padding:10px 18px;font-weight:600;font-size:15px;cursor:pointer;background:var(--raised);color:var(--text);transition:transform .12s}
+.req-btn:active{transform:scale(.96)}
+.req-btn.sent{background:transparent;color:var(--ok);box-shadow:inset 0 0 0 1px rgba(134,221,181,.35)}
+.req-btn:disabled{cursor:default}
+.req-btn.done{background:transparent;color:var(--muted)}
+.empty{color:var(--muted);text-align:center;padding:48px 12px}
+.empty strong{display:block;color:var(--text);margin-bottom:4px}
+
+/* SHEET */
+.overlay{position:fixed;inset:0;background:rgba(10,9,16,.7);z-index:50;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--surface);width:100%;max-width:520px;border-radius:22px 22px 0 0;padding:22px 20px calc(28px + env(safe-area-inset-bottom));animation:up .22s ease}
+@keyframes up{from{transform:translateY(30px);opacity:0}to{transform:none;opacity:1}}
+.grab{width:38px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 18px}
+.sheet h2{font-size:28px;font-weight:800;font-variation-settings:"opsz" 96,"wdth" 80;line-height:1}
+.sheet .a{color:var(--muted);margin-top:4px}
+.sheet label{display:block;color:var(--muted);font-size:14px;margin:20px 0 6px}
+.sheet input{width:100%;background:var(--house);border:1px solid var(--line);border-radius:var(--r-sm);padding:12px 14px;font-size:16px;outline:none}
+.sheet input:focus{border-color:var(--spot)}
+.note{background:rgba(255,111,150,.1);color:var(--gel);border-radius:var(--r-sm);padding:10px 12px;font-size:14px;margin-top:16px}
+.btn{display:flex;align-items:center;justify-content:center;width:100%;border:none;border-radius:999px;padding:15px 20px;font-weight:600;font-size:17px;cursor:pointer;text-decoration:none;transition:transform .12s}
+.btn:active{transform:scale(.98)}
+.btn-spot{background:var(--spot);color:var(--house);margin-top:20px}
+.btn-ghost{background:transparent;color:var(--text);box-shadow:inset 0 0 0 1px var(--line);margin-top:10px}
+.btn:disabled{opacity:.5}
+
+/* SENT */
+.sent-screen{position:fixed;inset:0;z-index:60;background:radial-gradient(90% 60% at 50% 0%,var(--spot-glow),transparent 70%),var(--house);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px 28px}
+.sent-screen h2{font-size:46px;font-weight:800;font-variation-settings:"opsz" 96,"wdth" 76;line-height:.95}
+.sent-screen p{color:var(--muted);font-size:18px;margin-top:12px;max-width:28ch}
+.sent-screen .actions{width:100%;max-width:340px;margin-top:28px}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="head">
+    <a class="back" href="/qr"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>Back</a>
+    <h1 id="act">Request a song</h1>
+    <div class="sub" id="sub">Pick a song and it goes straight to the stage.</div>
+    <div class="search">
+      <input id="q" type="text" placeholder="Search songs or artists" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="Search songs or artists">
+      <button class="clear" id="clear" hidden aria-label="Clear search" onclick="clearSearch()">✕</button>
+    </div>
+    <div class="chips" id="chips" role="group" aria-label="Filter by genre or decade"></div>
+  </header>
+
+  <div class="list">
+    <div class="count" id="count">Loading songs</div>
+    <div id="songs"></div>
+  </div>
+</div>
+
+<!-- REQUEST SHEET -->
+<div class="overlay" id="sheet" hidden onclick="if(event.target===this)closeSheet()">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+    <div class="grab"></div>
+    <h2 id="sheet-title"></h2>
+    <div class="a" id="sheet-artist"></div>
+    <div class="note" id="limit-note" hidden>You've sent a few already tonight. Send this one too?</div>
+    <label for="name">Your name (optional)</label>
+    <input id="name" type="text" maxlength="40" placeholder="So they can give you a shout-out" autocomplete="given-name">
+    <button class="btn btn-spot" id="send-btn" onclick="sendRequest()">Send request</button>
+    <button class="btn btn-ghost" onclick="closeSheet()">Cancel</button>
+  </div>
+</div>
+
+<!-- SENT -->
+<div class="sent-screen" id="sent" hidden role="status">
+  <h2>Request sent</h2>
+  <p id="sent-msg"></p>
+  <div class="actions">
+    <a class="btn btn-spot" id="sent-tip" href="#" target="_blank" rel="noopener" hidden>Leave a tip</a>
+    <button class="btn btn-ghost" onclick="$('sent').hidden=true">Back to songs</button>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ERA_ORDER = ['60s','70s','80s','90s','2000s','2010s','2020s'];
+const SOFT_LIMIT = 2;
+
+let songs = [], played = new Set(), counts = {}, mine = new Set(), settings = {};
+let filter = {type:'all', val:null}, query = '', pending = null, db = null;
+
+function tipLabel(url){
+  if (/venmo/i.test(url)) return 'Tip with Venmo';
+  if (/cash\.app|cashapp/i.test(url)) return 'Tip with Cash App';
+  if (/paypal/i.test(url)) return 'Tip with PayPal';
+  return 'Leave a tip';
+}
+
+// Remember this device's requests for the night, so a refresh doesn't reset them.
+const MINE_KEY = 'myRequests:' + new Date().toISOString().slice(0,10);
+try { mine = new Set(JSON.parse(localStorage.getItem(MINE_KEY) || '[]')); } catch(e) {}
+function saveMine(){ try { localStorage.setItem(MINE_KEY, JSON.stringify([...mine])); } catch(e) {} }
+
+if (!window.isFirebaseConfigured()) {
+  songs = window.STARTER_SONGS.slice();
+  $('sub').textContent = 'Preview mode. Requests aren\'t connected yet.';
+  renderChips(); render();
+} else {
+  firebase.initializeApp(window.FIREBASE_CONFIG);
+  db = firebase.database();
+  // Fans sign in anonymously in the background so they can send requests.
+  firebase.auth().signInAnonymously().catch(() => {});
+  db.ref('settings').on('value', s => {
+    settings = s.val() || {};
+    const act = settings.actName || '';
+    $('act').textContent = act || 'Request a song';
+    document.title = act ? `Request a song · ${act}` : 'Request a song';
+    $('sub').textContent = settings.venue ? `Live at ${settings.venue}. Pick a song and it goes straight to the stage.` : 'Pick a song and it goes straight to the stage.';
+  });
+  db.ref('songs').on('value', s => {
+    const v = s.val();
+    songs = v ? (Array.isArray(v) ? v : Object.values(v)).filter(Boolean) : [];
+    renderChips(); render();
+  }, () => { $('count').textContent = 'Songs couldn\'t load. Refresh to try again.'; });
+  db.ref('requests/played').on('value', s => {
+    played = new Set(Object.keys(s.val() || {}).map(Number)); render();
+  });
+  db.ref('requests/queue').on('value', s => {
+    counts = {};
+    Object.values(s.val() || {}).forEach(r => { if (r && r.songId && !r.dismissed) counts[r.songId] = (counts[r.songId]||0) + 1; });
+    render();
+  });
+}
+
+function renderChips(){
+  const active = songs.filter(s => s.active !== false);
+  const genres = [...new Set(active.map(s => s.genre).filter(Boolean))].sort();
+  const eras = [...new Set(active.map(s => s.era).filter(Boolean))].sort((a,b) => ERA_ORDER.indexOf(a) - ERA_ORDER.indexOf(b));
+  const chip = (type, val, label) => `<button class="chip${(filter.type===type && filter.val===val)?' on':''}" data-type="${type}" data-val="${esc(val ?? '')}">${esc(label)}</button>`;
+  $('chips').innerHTML = chip('all', null, 'All') + genres.map(g => chip('genre', g, g)).join('') +
+    (eras.length ? '<span class="chip-gap"></span>' : '') + eras.map(e => chip('era', e, e)).join('');
+}
+
+$('chips').addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if (!b) return;
+  setFilter(b.dataset.type, b.dataset.type === 'all' ? null : b.dataset.val);
+});
+function setFilter(type, val){
+  filter = (filter.type === type && filter.val === val) || type === 'all' ? {type:'all', val:null} : {type, val};
+  renderChips(); render();
+}
+
+function render(){
+  const q = query.toLowerCase().trim();
+  const list = songs.filter(s => s.active !== false)
+    .filter(s => filter.type === 'all' || s[filter.type] === filter.val)
+    .filter(s => !q || s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q))
+    .sort((a,b) => (played.has(a.id) - played.has(b.id)) || a.title.localeCompare(b.title));
+  $('count').textContent = `${list.length} song${list.length === 1 ? '' : 's'}`;
+  if (!list.length) {
+    $('songs').innerHTML = songs.length
+      ? `<div class="empty"><strong>No songs match</strong>Try a different search or filter.</div>`
+      : `<div class="empty"><strong>No songs yet</strong>Check back once the show starts.</div>`;
+    return;
+  }
+  $('songs').innerHTML = list.map(s => {
+    const isPlayed = played.has(s.id), isMine = mine.has(s.id), n = counts[s.id] || 0;
+    let btn;
+    if (isPlayed) btn = `<button class="req-btn done" disabled>Played</button>`;
+    else if (isMine) btn = `<button class="req-btn sent" disabled>Sent</button>`;
+    else btn = `<button class="req-btn" onclick="openSheet(${Number(s.id)})">Request</button>`;
+    return `<div class="song${isPlayed?' played':''}">
+      <div class="main">
+        <div class="t">${esc(s.title)}${!isPlayed && n > 1 ? `<span class="x">×${n}</span>` : ''}</div>
+        <div class="a">${esc(s.artist)}</div>
+      </div>${btn}
+    </div>`;
+  }).join('');
+}
+
+$('q').addEventListener('input', e => { query = e.target.value; $('clear').hidden = !query; render(); });
+function clearSearch(){ $('q').value = ''; query = ''; $('clear').hidden = true; render(); $('q').focus(); }
+
+function openSheet(id){
+  const s = songs.find(x => x.id === id); if (!s) return;
+  pending = s;
+  $('sheet-title').textContent = s.title;
+  $('sheet-artist').textContent = s.artist;
+  $('limit-note').hidden = mine.size < SOFT_LIMIT;
+  $('send-btn').disabled = false; $('send-btn').textContent = 'Send request';
+  $('sheet').hidden = false;
+}
+function closeSheet(){ $('sheet').hidden = true; pending = null; }
+
+async function sendRequest(){
+  if (!pending) return;
+  if (!db) { closeSheet(); alert('Requests aren\'t connected yet.'); return; }
+  const btn = $('send-btn'), name = $('name').value.trim();
+  btn.disabled = true; btn.textContent = 'Sending';
+  try {
+    if (!firebase.auth().currentUser) await firebase.auth().signInAnonymously();
+    await db.ref('requests/queue').push({songId:pending.id, title:pending.title, artist:pending.artist, name:name || null, ts:firebase.database.ServerValue.TIMESTAMP});
+    mine.add(pending.id); saveMine();
+    const act = settings.actName || 'the band';
+    $('sent-msg').textContent = `${name ? name + ', ' : ''}${pending.title} is on ${act}'s list.`;
+    const tip = $('sent-tip');
+    if (settings.tipLink) { tip.href = settings.tipLink; tip.textContent = tipLabel(settings.tipLink); tip.hidden = false; } else tip.hidden = true;
+    closeSheet(); $('sent').hidden = false; render();
+  } catch(e) {
+    btn.disabled = false; btn.textContent = 'Send request';
+    alert('Your request didn\'t send. Check your connection and try again.');
+  }
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeSheet(); $('sent').hidden = true; } });
+if (!songs.length) render();
+</script>
+</body>
+</html>

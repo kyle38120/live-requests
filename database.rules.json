@@ -1,0 +1,26 @@
+{
+  "rules": {
+    "settings": {
+      ".read": true,
+      ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'"
+    },
+    "songs": {
+      ".read": true,
+      ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'"
+    },
+    "requests": {
+      ".read": true,
+      ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
+      "queue": {
+        "$requestId": {
+          ".write": "auth != null && !data.exists() && newData.exists()",
+          ".validate": "newData.hasChildren(['songId', 'title', 'artist', 'ts']) && newData.child('songId').isNumber() && newData.child('title').isString() && newData.child('title').val().length <= 150 && newData.child('artist').isString() && newData.child('artist').val().length <= 150 && newData.child('ts').isNumber() && (!newData.child('name').exists() || (newData.child('name').isString() && newData.child('name').val().length <= 40))"
+        }
+      }
+    },
+    "requestHistory": {
+      ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
+      ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'"
+    }
+  }
+}
