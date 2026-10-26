@@ -52,7 +52,7 @@ button,input,select{font:inherit;color:inherit;letter-spacing:inherit}
 .wrap{max-width:540px;margin:0 auto;padding-bottom:calc(40px + env(safe-area-inset-bottom))}
 
 /* HEADER */
-.head{position:sticky;top:0;z-index:10;background:linear-gradient(180deg,rgba(40,40,44,.74),rgba(26,26,30,.64));-webkit-backdrop-filter:blur(40px) saturate(190%);backdrop-filter:blur(40px) saturate(190%);border-radius:0 0 28px 28px;padding:calc(env(safe-area-inset-top) + 14px) 20px 14px}
+.head{position:relative;z-index:1;background:linear-gradient(180deg,rgba(40,40,44,.74),rgba(26,26,30,.64));-webkit-backdrop-filter:blur(40px) saturate(190%);backdrop-filter:blur(40px) saturate(190%);border-radius:0 0 28px 28px;padding:calc(env(safe-area-inset-top) + 14px) 20px 14px}
 .back{display:inline-flex;align-items:center;gap:2px;color:var(--label);text-decoration:none;font-size:15px;font-weight:500;margin-bottom:12px;padding:7px 14px 7px 9px;border-radius:999px;background:rgba(255,255,255,.1)}
 .head h1{font-size:34px;font-weight:700;letter-spacing:-.022em;line-height:1.08}
 .head .sub{color:var(--label2);font-size:15px;margin-top:3px}
@@ -67,6 +67,16 @@ button,input,select{font:inherit;color:inherit;letter-spacing:inherit}
 .chip{flex-shrink:0;border:none;background:rgba(255,255,255,.1);color:var(--label);padding:8px 16px;border-radius:999px;font-size:15px;font-weight:500;cursor:pointer;white-space:nowrap;transition:background .2s,color .2s}
 .chip.on{background:#fff;color:#000}
 .chip-gap{flex-shrink:0;width:1px;background:var(--sep);margin:6px 2px}
+
+/* COMPACT BAR: slides in once the large title scrolls away, like an iOS navigation bar */
+.mini{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 8px) max(12px, calc((100% - 540px) / 2 + 12px)) 8px;border-radius:0 0 22px 22px;
+  background:linear-gradient(180deg,rgba(40,40,44,.74),rgba(26,26,30,.64));-webkit-backdrop-filter:blur(40px) saturate(190%);backdrop-filter:blur(40px) saturate(190%);box-shadow:var(--glass-shadow);
+  transform:translateY(-110%);opacity:0;pointer-events:none;transition:transform .32s cubic-bezier(.25,1.2,.5,1),opacity .2s}
+.mini.show{transform:none;opacity:1;pointer-events:auto}
+.mini-title{flex:1;min-width:0;text-align:center;font-size:17px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini-btn{flex-shrink:0;width:38px;height:38px;border-radius:50%;border:none;background:rgba(255,255,255,.12);color:var(--label);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;text-decoration:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.14)}
+.mini-btn:active{background:rgba(255,255,255,.22)}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.mini{background:#1C1C1E}}
 
 /* LIST */
 .list{padding:6px 16px 0}
@@ -118,6 +128,11 @@ button,input,select{font:inherit;color:inherit;letter-spacing:inherit}
 </style>
 </head>
 <body>
+<div class="mini" id="mini" aria-hidden="true">
+  <a class="mini-btn" href="/qr" aria-label="Back" tabindex="-1"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></a>
+  <div class="mini-title" id="mini-title">Request a song</div>
+  <button class="mini-btn" type="button" onclick="jumpToSearch()" aria-label="Search songs" tabindex="-1"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
+</div>
 <div class="wrap">
   <header class="head">
     <a class="back" href="/qr"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>Back</a>
@@ -197,6 +212,7 @@ if (!window.isFirebaseConfigured()) {
     settings = s.val() || {};
     const act = settings.actName || '';
     $('act').textContent = act || 'Request a song';
+    $('mini-title').textContent = act || 'Request a song';
     document.title = act ? `Request a song · ${act}` : 'Request a song';
     $('sub').textContent = settings.venue ? `Live at ${settings.venue}. Pick a song and it goes straight to the stage.` : 'Pick a song and it goes straight to the stage.';
   });
@@ -262,6 +278,20 @@ function render(){
 }
 
 $('q').addEventListener('input', e => { query = e.target.value; $('clear').hidden = !query; render(); });
+// Compact bar: show it once the large title has scrolled under the top of the screen.
+(function(){
+  const mini = $('mini'), title = $('act');
+  const set = on => { mini.classList.toggle('show', on); mini.setAttribute('aria-hidden', on ? 'false' : 'true'); mini.querySelectorAll('.mini-btn').forEach(b => b.tabIndex = on ? 0 : -1); };
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(([e]) => set(!e.isIntersecting && e.boundingClientRect.top < 0), {rootMargin:'-56px 0px 0px 0px'}).observe(title);
+  } else {
+    addEventListener('scroll', () => set(title.getBoundingClientRect().bottom < 56), {passive:true});
+  }
+})();
+function jumpToSearch(){
+  $('q').focus({preventScroll:true});
+  window.scrollTo({top:0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
+}
 function clearSearch(){ $('q').value = ''; query = ''; $('clear').hidden = true; render(); $('q').focus(); }
 
 function openSheet(id){
