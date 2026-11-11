@@ -24,11 +24,13 @@ The demo pages were generated from this repo's pages by a one-off script that wa
 
 ## How the app is built
 
-- **Plain static pages, no build step:** `index.html` (stage view, for the performer, at `/`), `qr/index.html` (fan landing page, at `/[act-link]`), `request/index.html` (fan song list, at `/[act-link]/songs`). Each page holds its own CSS and JS.
+- **Plain static pages, no build step:** `index.html` (stage view, for the performer, at `/`), `setup/index.html` (setup flow for a new act, at `/setup`), `qr/index.html` (fan landing page, at `/[act-link]`), `request/index.html` (fan song list, at `/[act-link]/songs`). Each page holds its own CSS and JS.
+- **Setup flow:** sign-in stays on `/`. An account with no act is sent to `/setup`: name the act (claims the link), pick songs (starter list with genre and decade filters, or a pasted "Title - Artist" list), add a tip link from a Venmo or Cash App handle, then "You're live" with the link and a downloadable QR code. Everything after the name can be skipped. The stage view links back into single steps with `/setup?step=songs|tip|live&from=stage`, which return to `/` when done. With the Firebase config unfilled, setup runs in preview mode and saves nothing.
+- **Third-party code:** `vendor/qrcode-generator.js` (qrcode-generator 1.4.4, MIT) draws QR codes on the setup page. It's committed, not loaded from a CDN.
 - **One Firebase project holds every act.** Each act's data lives under `artists/{artistId}`. The act's link (its "slug", e.g. `the-doorknobs`) is separate from its ID, so renaming never moves data.
 - **Artist links:** `firebase.json` rewrites `/*` to `qr/index.html` and `/*/songs` to `request/index.html`. A local server can't rewrite, so the fan pages also accept `/qr/?a=the-doorknobs` and `/request/?a=the-doorknobs`. `artist-link.js` (shared by all three pages) holds the slug rules, the reserved words, the link builders and `ArtistLink.resolve()`. Its slug rules must match `database.rules.json`.
 - **Firebase compat SDK 10.12.0** from gstatic: Realtime Database plus Auth (Google or an emailed sign-in link for performers, Anonymous for fans).
-- **`firebase-config.js`** holds the Firebase keys (still `PASTE_` placeholders), `APP_NAME`, `isFirebaseConfigured()` and `STARTER_SONGS` (71 songs tagged by decade and genre). A new act starts with all 71, active.
+- **`firebase-config.js`** holds the Firebase keys (still `PASTE_` placeholders), `APP_NAME`, `isFirebaseConfigured()` and `STARTER_SONGS` (71 songs tagged by decade and genre). A new act starts with no songs and picks from these, or pastes its own list, in the setup flow.
 - **`database.rules.json`:** the security rules, summarized under "Who can do what" below. `tests/rules.test.mjs` covers them (see Testing).
 
 Data:
@@ -55,7 +57,7 @@ Who can do what (all enforced in `database.rules.json`):
 
 ### Code rules
 - Escape every piece of user text before it goes into `innerHTML`, using `esc()`.
-- Song IDs are permanent: a new song gets `max id + 1`, and existing songs are never renumbered. Songs are stored by ID (`songs/12`), never as an array.
+- Song IDs are permanent and existing songs are never renumbered. A starter song keeps its starter ID (1 to 71). Any other new song gets the higher of 71 and the act's current max ID, plus 1, so adding a starter song later can't collide. Songs are stored by ID (`songs/12`), never as an array.
 - In the stage view, reach the act's data through `A('path')`, never `db.ref()` on a top-level path.
 - A rule change needs a test in `tests/rules.test.mjs`, for both the allowed and the refused case.
 - Don't use `alert()`, `confirm()` or `prompt()` for new UI. Use the app's own sheets and toasts.

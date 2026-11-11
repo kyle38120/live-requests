@@ -42,11 +42,12 @@
   }
 
   // Fan pages keep using whichever form they were opened with. The stage view (at /)
-  // uses the short form, except on a local server, which can't rewrite addresses.
+  // and the setup page (at /setup) use the short form, except on a local server,
+  // which can't rewrite addresses.
   function useQueryForm() {
     var first = (location.pathname.split('/').filter(Boolean)[0] || '').toLowerCase();
     if (first === 'qr' || first === 'request') return true;
-    if (first) return false;
+    if (first && first !== 'setup') return false;
     return LOCAL;
   }
 

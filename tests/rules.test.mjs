@@ -78,6 +78,27 @@ test('an act cannot point at a link it did not claim', async () => {
 test('you cannot claim a link for someone else\'s act', async () => {
   await assertFails(google('newbie').ref('slugs/doorknobs-fans').set('actA'));
 });
+// The setup flow creates the act without songs, then adds the songs the artist picks or pastes.
+test('an act can be created with no songs, then filled by its owner only', async () => {
+  const u = createAct('newbie', 'actN', 'new-act', 'New Act');
+  delete u['artists/actN/songs'];
+  await assertSucceeds(google('newbie').ref().update(u));
+  if (await peek('artists/actN/songs') !== null) throw new Error('songs should start empty');
+  const picks = {
+    2: { id: 2, title: 'Dreams', artist: 'Fleetwood Mac', era: '70s', genre: 'Rock', active: true },   // starter song, starter id
+    72: { id: 72, title: 'Semi-Charmed Life', artist: 'Third Eye Blind', era: '', genre: '', active: true }, // pasted, no genre or decade
+    73: { id: 73, title: 'Happy Birthday', artist: '', era: '', genre: '', active: true },                // pasted with no artist
+  };
+  await assertFails(google('rob').ref('artists/actN/songs').update(picks));
+  await assertFails(anon('fan1').ref('artists/actN/songs').update(picks));
+  await assertSucceeds(google('newbie').ref('artists/actN/songs').update(picks));
+  await assertFails(google('newbie').ref('artists/actN/songs').update({ 74: { id: 74, title: '', artist: 'Nobody', active: true } }));
+});
+test('the setup flow can save a tip link built from a Venmo or Cash App handle', async () => {
+  await assertSucceeds(act(google('kyle')).child('settings').update({ tipLink: 'https://venmo.com/u/the-doorknobs' }));
+  await assertSucceeds(act(google('kyle')).child('settings').update({ tipLink: 'https://cash.app/$doorknobs' }));
+  await assertFails(act(google('rob')).child('settings').update({ tipLink: 'https://cash.app/$rob' }));
+});
 test('a half-made act is rejected', async () => {
   await assertFails(google('newbie').ref('artists/actN/members/newbie').set('owner'));
 });

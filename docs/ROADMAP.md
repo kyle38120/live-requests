@@ -2,7 +2,7 @@
 
 Last updated: 2026-11-11
 
-Live Requests is a requests-only test build. A demo of it is live at https://live-requests-demo.oddnc.com. Any number of acts can now share one Firebase project, each with its own link. **The next step is the setup flow, so any act can sign up and set itself up in under five minutes.**
+Live Requests is a requests-only test build. A demo of it is live at https://live-requests-demo.oddnc.com. Any number of acts can now share one Firebase project, each with its own link, and a new act can set itself up in a few minutes. **The next step is the share kit: a printable table tent and the short link.**
 
 ## Done
 
@@ -15,12 +15,13 @@ Live Requests is a requests-only test build. A demo of it is live at https://liv
 | Oct 26 | Demo moved to Cloudflare at live-requests-demo.oddnc.com; demo act renamed "The Doorknobs" |
 | Oct 26 | Big headers collapse into a compact bar on scroll (stage view and song list) |
 | Nov 11 | Multi-artist foundation: each act's data under its own record, artist links (`/the-doorknobs`, `/the-doorknobs/songs`), security rules with emulator tests, sign-in with Google or an emailed link, a bare "Name your act" sheet that claims the link and seeds the 71 starter songs. Also: fan names hidden from the public queue, one request per fan every 30 seconds, every play counted, and the performer no longer gets signed out by opening their own song list |
+| Nov 11 | Setup flow at `/setup`: name the act and claim its link, pick songs from the starter list (genre and decade filters, select all) or paste a list, turn a Venmo or Cash App handle into a tip link, then "You're live" with the link, a downloadable QR code and the stage view. Every step after the name can be skipped, and the stage view links back to finish it later. New acts no longer get all 71 starter songs automatically |
 
 ## Now: artist accounts and setup
 
 1. ~~**Multi-artist foundation.**~~ Done Nov 11 (see above).
-2. **Setup flow, under five minutes, and everything after the act name can be skipped.** Sign in, choose an act name (which claims the link, checked live), pick songs from the starter list or paste a list, add a Venmo or Cash App handle, then see "You're live" with the link, the QR code and the stage view. Builds on the bare "Name your act" sheet from step 1, and replaces its "seed all 71 starter songs" with the song picker.
-3. **Share kit.** Downloadable QR code, printable table tent, and the short link.
+2. ~~**Setup flow, under five minutes, and everything after the act name can be skipped.**~~ Done Nov 11 (see above). Still to prove with real people in step 5.
+3. **Share kit.** Printable table tent and the short link. The downloadable QR code is done (setup's "You're live" screen, also reachable from the stage view). The QR code's link carries `?from=qr` so scans can be told apart from typed links later; nothing reads it yet.
 4. **Settings to edit later.** Act name, tip link, songs, and changing the link. A new link is claimed alongside the old one, which keeps redirecting so printed QR codes never break (the rules already allow this).
 5. **Testing.** Kyle sets up a brand-new act alone, then 2 or 3 artist friends try it while someone watches and times them. Fix every spot where they hesitate.
 6. **Move the demo onto the real app** as a demo act, then retire the separate demo repo.
@@ -40,6 +41,7 @@ Open question for this phase: **DJs.** Do we support "open requests" (fans type 
 - **Gig discovery map and "playing near you".** Needs a critical mass of artists in one town. Save every gig with requests open (artist, venue, date) from day one so the map has data.
 - **Native app** for artists and regular fans, with push notifications for followed artists. Possibly an App Clip. Patrons always keep a no-download web path.
 - **Marketing to artists through music shops.**
+- **Fill in genre and decade for pasted songs automatically.** Pasted songs are saved without them, so they don't show up under the fan page's genre and decade filters. Songs that match a starter song already get its genre and decade.
 
 ## Waiting on someone
 

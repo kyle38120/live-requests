@@ -5,6 +5,7 @@ A song request page for live performers. Fans scan a QR code, pick a song and se
 | Page | Address | Who uses it |
 | --- | --- | --- |
 | Stage view | `/` | The performer, signed in with Google or an emailed link |
+| Setup | `/setup` | A performer setting up a new act, right after first sign-in |
 | Fan page | `/the-doorknobs` (the act's link) | Fans, from the QR code |
 | Song list | `/the-doorknobs/songs` | Fans, from the fan page |
 
@@ -38,9 +39,12 @@ To redeploy after changes, run `firebase deploy` again. To deploy automatically 
 
 ### 3. First run
 1. Open `https://<project-id>.web.app` on your phone and sign in with Google or an emailed link.
-2. Name your act. Your link is suggested from the name (`the-doorknobs`) and checked live. Tap **Create my page**. The 71-song starter list is loaded for you.
-3. Open **Your fan page** at the bottom, then fill in tonight's venue and your tip link (Venmo, Cash App or PayPal).
-4. Make a QR code that points to the link shown there, `https://<project-id>.web.app/<your-link>`.
+2. The setup flow opens. Name your act: your link is suggested from the name (`the-doorknobs`) and checked live. Tap **Create my page**.
+3. Pick your songs from the 71-song starter list (filter by genre or decade, or tap **Select all 71**), or paste your own list, one `Title - Artist` per line. Or skip and add them later.
+4. Add a tip link by typing your Venmo username or Cash App $cashtag, or paste any other link. Optional.
+5. **You're live** shows your link and a QR code you can download. Tap **Open the stage view** to run the night.
+
+Anything you skipped can be finished later from the stage view: the **Add songs** card, **Song list**, and **Your fan page** (tip link and QR code). Tonight's venue is set in **Your fan page** too.
 
 ## How access works
 - Anyone can sign up and create an act. Each act can edit only its own settings, songs, queue and history.
@@ -48,11 +52,13 @@ To redeploy after changes, run `firebase deploy` again. To deploy automatically 
 - The rules live in `database.rules.json` and deploy with `firebase deploy`. To test them: `npm install` once, then `npm run test:rules` (starts the Realtime Database emulator, which needs Java).
 
 ## Files
-- `index.html`: stage view (queue, crowd favorites, song list, history, fan page settings)
+- `index.html`: stage view (sign-in, queue, crowd favorites, song list, history, fan page settings)
+- `setup/index.html`: setup flow for a new act (name and link, songs, tip link, link and QR code)
 - `request/index.html`: fan song list and request form
 - `qr/index.html`: fan landing page with request and tip buttons
 - `firebase-config.js`: Firebase keys, app name and the starter song catalog
 - `artist-link.js`: act links (slug rules, reserved words, looking up an act by its link)
+- `vendor/qrcode-generator.js`: QR code drawing (qrcode-generator 1.4.4, MIT), used by the setup page
 - `database.rules.json`: who can read and write what
 - `tests/rules.test.mjs`: security rules tests, run with `npm run test:rules`
 - `firebase.json`: hosting settings, including the rewrites that make act links work
