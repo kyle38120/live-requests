@@ -50,3 +50,7 @@ To redeploy after changes, run `firebase deploy` again. To deploy automatically 
 - `firebase-config.js`: Firebase keys, app name and the starter song catalog
 - `database.rules.json`: who can read and write what
 - `firebase.json`: hosting settings
+
+## For Claude and contributors
+
+See `CLAUDE.md` for how the app is built and the design rules, `docs/ROADMAP.md` for what is next, and `docs/DECISIONS.md` for what has been decided.
