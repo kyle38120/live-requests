@@ -13,6 +13,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..800&display=swap" rel="stylesheet">
 <script src="/firebase-config.js"></script>
+<script src="/artist-link.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
@@ -61,6 +62,12 @@ body{padding-bottom:env(safe-area-inset-bottom)}
 .gate h1{font-size:34px;font-weight:700;letter-spacing:-.022em;line-height:1.1}
 .gate p{color:var(--label2);max-width:30ch}
 .gate .err{color:var(--red);min-height:1.4em;font-size:15px}
+.gate .form{width:100%;text-align:left}
+.gate .or{color:var(--label3);font-size:13px}
+.gate .ok{color:var(--green);font-size:15px}
+.gate .check{font-size:13px;color:var(--label2);margin:6px 4px 0;min-height:1.3em;overflow-wrap:anywhere}
+.gate .check.good{color:var(--green)}
+.gate .check.bad{color:var(--red)}
 .gate code{background:var(--fill);padding:2px 7px;border-radius:6px;font-size:15px;font-family:ui-monospace,"SF Mono",Menlo,monospace}
 
 /* BUTTONS */
@@ -196,19 +203,46 @@ select.field{appearance:none;-webkit-appearance:none;background-image:url("data:
 <div class="gate" id="signin-gate" hidden>
   <div class="gate-card">
   <h1 id="signin-app-name">Live Requests</h1>
-  <p>Sign in to run your request queue and edit your song list.</p>
-  <button class="btn btn-spot" id="signin-btn" onclick="signIn()">
+  <p id="signin-msg">Sign in to run your request queue and edit your song list.</p>
+  <button class="btn btn-spot btn-full" id="signin-btn" onclick="signIn()">
     <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="currentColor" d="M44.5 20H24v8.5h11.8C34.7 33.9 30.1 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 5.1 29.6 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21c10.5 0 20-7.6 20-21 0-1.3-.2-2.7-.5-4z"/></svg>
     Sign in with Google
   </button>
-  <div class="err" id="signin-err"></div>
+  <div class="or" id="signin-or">or</div>
+  <form class="form stack" onsubmit="event.preventDefault(); emailLink()">
+    <input class="field" id="email" type="email" placeholder="Your email" autocomplete="email" inputmode="email" aria-label="Your email">
+    <button class="btn btn-ghost btn-full" id="email-btn" type="submit">Email me a sign-in link</button>
+  </form>
+  <div class="ok" id="signin-ok" role="status"></div>
+  <div class="err" id="signin-err" role="alert"></div>
+  </div>
+</div>
+
+<!-- NAME YOUR ACT (first sign-in) -->
+<div class="gate" id="act-gate" hidden>
+  <div class="gate-card">
+    <h1>Name your act</h1>
+    <p>Fans see this name when they request a song. You can change it later.</p>
+    <form class="form stack" onsubmit="event.preventDefault(); createAct()">
+      <div>
+        <label class="lbl" for="new-act">Act name</label>
+        <input class="field" id="new-act" placeholder="e.g. The Doorknobs" maxlength="60" autocomplete="off">
+      </div>
+      <div>
+        <label class="lbl" for="new-slug">Your link</label>
+        <input class="field" id="new-slug" placeholder="the-doorknobs" maxlength="30" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
+        <div class="check" id="slug-check" aria-live="polite"></div>
+      </div>
+      <button class="btn btn-spot btn-full" id="create-btn" type="submit" disabled>Create my page</button>
+    </form>
+    <div class="err" id="act-err" role="alert"></div>
   </div>
 </div>
 
 <div class="mini" id="mini" aria-hidden="true">
   <button class="mini-q" type="button" onclick="window.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})" tabindex="-1" aria-label="Back to the request queue"><span class="sync-dot" id="mini-dot"></span><span id="mini-q"></span></button>
   <div class="mini-title" id="mini-title">Your act</div>
-  <a class="btn btn-ghost" href="/qr" target="_blank" rel="noopener" tabindex="-1">Fan page</a>
+  <a class="btn btn-ghost fanpage-link" href="/qr" target="_blank" rel="noopener" tabindex="-1">Fan page</a>
 </div>
 
 <header class="top">
@@ -216,7 +250,7 @@ select.field{appearance:none;-webkit-appearance:none;background-image:url("data:
     <h1 id="act-name">Your act</h1>
     <div class="status"><span class="sync-dot" id="sync-dot"></span><span id="status-line">Connecting</span></div>
   </div>
-  <a class="btn btn-ghost btn-sm" href="/qr" target="_blank" rel="noopener">Fan page</a>
+  <a class="btn btn-ghost btn-sm fanpage-link" href="/qr" target="_blank" rel="noopener">Fan page</a>
 </header>
 
 <main>
@@ -352,18 +386,21 @@ document.title = 'Stage view · ' + (window.APP_NAME || 'Live Requests');
 $('signin-app-name').textContent = window.APP_NAME || 'Live Requests';
 $('add-era').innerHTML = ERAS.map(e => `<option${e==='90s'?' selected':''}>${e}</option>`).join('');
 $('add-genre').innerHTML = GENRES.map(g => `<option>${g}</option>`).join('');
-$('qr-link').value = location.origin + '/qr';
-$('req-link').value = location.origin + '/request';
 
 // ── STATE ─────────────────────────────────────────────────────
-let db, auth;
+let db, auth, artistId = '';
+const A = path => db.ref('artists/' + artistId + (path ? '/' + path : ''));   // this act's data
 let songs = [];            // [{id,title,artist,era,genre,active}]
-let queueData = {};        // pushKey -> request
-let playedData = {};       // songId -> {songId,title,artist,ts}
+let queueData = {};        // pushKey -> {songId,title,artist,ts,fan,dismissed?}
+let nameData = {};         // pushKey -> fan's name (readable only by the act)
+let playedData = {};       // pushKey -> {songId,title,artist,ts}, one entry per play
 let settings = {};
 let hist = {requests:[], plays:[], sessions:{}, loaded:false};
 let songFilter = 'all', songSearch = '', editMode = false;
 let started = false;
+const EMAIL_KEY = 'emailForSignIn';   // remembers the address an email sign-in link was sent to
+let finishingLink = false;
+let slugEdited = false, slugTimer = null, slugOk = false;
 
 // ── BOOT ──────────────────────────────────────────────────────
 if (!window.isFirebaseConfigured()) {
@@ -374,11 +411,12 @@ if (!window.isFirebaseConfigured()) {
   db = firebase.database();
   auth = firebase.auth();
   auth.getRedirectResult().catch(e => { $('signin-err').textContent = signInMessage(e); });
+  finishEmailLink();
   auth.onAuthStateChanged(user => {
     if (user && !user.isAnonymous) {
       $('signin-gate').hidden = true;
-      $('who').textContent = user.email || 'your Google account';
-      start();
+      $('who').textContent = user.email || 'your account';
+      openMyAct(user);
     } else {
       $('signin-gate').hidden = false;
     }
@@ -393,6 +431,9 @@ function signInMessage(e){
   if (!e) return '';
   if (e.code === 'auth/unauthorized-domain') return 'This web address isn\'t on Firebase\'s authorized domains list yet.';
   if (e.code === 'auth/popup-closed-by-user') return '';
+  if (e.code === 'auth/operation-not-allowed') return 'This sign-in method isn\'t turned on in Firebase yet.';
+  if (e.code === 'auth/invalid-email') return 'That email address doesn\'t look right.';
+  if (e.code === 'auth/invalid-action-code' || e.code === 'auth/expired-action-code') return 'That sign-in link has expired or was already used. Send a new one.';
   return 'Sign-in didn\'t finish. Try again.';
 }
 
@@ -407,13 +448,122 @@ function signIn(){
   }).finally(() => { btn.disabled = false; });
 }
 
-function signOut(){ auth.signOut(); }
+// Email link sign-in: send a link, then finish when the artist opens it.
+function emailLink(){
+  const email = $('email').value.trim(), btn = $('email-btn');
+  $('signin-err').textContent = ''; $('signin-ok').textContent = '';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { $('signin-err').textContent = 'Enter your email address.'; return; }
+  btn.disabled = true;
+  if (finishingLink) { completeEmailLink(email).finally(() => { btn.disabled = false; }); return; }
+  auth.sendSignInLinkToEmail(email, {url: location.origin + '/', handleCodeInApp: true}).then(() => {
+    try { localStorage.setItem(EMAIL_KEY, email); } catch(e) {}
+    $('signin-ok').textContent = `Check your email. We sent a sign-in link to ${email}.`;
+  }).catch(e => { $('signin-err').textContent = signInMessage(e); })
+    .finally(() => { btn.disabled = false; });
+}
+function finishEmailLink(){
+  if (!auth.isSignInWithEmailLink(location.href)) return;
+  let email = '';
+  try { email = localStorage.getItem(EMAIL_KEY) || ''; } catch(e) {}
+  if (email) { completeEmailLink(email); return; }
+  // Opened on a different device: ask for the email again to finish.
+  finishingLink = true;
+  $('signin-msg').textContent = 'Confirm your email to finish signing in.';
+  $('signin-btn').hidden = true; $('signin-or').hidden = true;
+  $('email-btn').textContent = 'Finish signing in';
+}
+function completeEmailLink(email){
+  return auth.signInWithEmailLink(email, location.href).then(() => {
+    try { localStorage.removeItem(EMAIL_KEY); } catch(e) {}
+    history.replaceState(null, '', location.pathname);
+  }).catch(e => { $('signin-err').textContent = signInMessage(e); });
+}
 
-function start(){
+function signOut(){ auth.signOut().then(() => location.reload()); }
+
+// ── YOUR ACT ──────────────────────────────────────────────────
+// Find the act this account runs. On first sign-in there isn't one yet,
+// so ask for a name and a link.
+function openMyAct(user){
+  if (started) return;
+  db.ref('users/' + user.uid + '/artists').once('value').then(s => {
+    const ids = Object.keys(s.val() || {});
+    if (ids.length) start(ids[0]);
+    else showActGate();
+  }).catch(() => { $('status-line').textContent = 'Couldn\'t load your act. Refresh to try again.'; });
+}
+
+function showActGate(){
+  $('act-gate').hidden = false;
+  setTimeout(() => $('new-act').focus(), 50);
+}
+$('new-act').addEventListener('input', function(){
+  if (!slugEdited) $('new-slug').value = ArtistLink.slugify(this.value);
+  checkSlug();
+});
+$('new-slug').addEventListener('input', function(){
+  slugEdited = true;
+  const v = this.value.toLowerCase().replace(/[\s_]+/g, '-').replace(/[^a-z0-9-]/g, '');
+  if (v !== this.value) this.value = v;
+  checkSlug();
+});
+function setSlugCheck(text, cls){
+  const c = $('slug-check'); c.textContent = text; c.className = 'check' + (cls ? ' ' + cls : '');
+}
+function updateCreateBtn(){ $('create-btn').disabled = !(slugOk && $('new-act').value.trim()); }
+function checkSlug(){
+  const slug = $('new-slug').value;
+  slugOk = false; updateCreateBtn(); clearTimeout(slugTimer); $('act-err').textContent = '';
+  if (!slug) { setSlugCheck(''); return; }
+  const problem = ArtistLink.slugProblem(slug);
+  if (problem) { setSlugCheck(problem, 'bad'); return; }
+  setSlugCheck('Checking');
+  slugTimer = setTimeout(() => {
+    db.ref('slugs/' + slug).once('value').then(s => {
+      if ($('new-slug').value !== slug) return;
+      if (s.exists()) { setSlugCheck('That link is taken. Try another.', 'bad'); return; }
+      slugOk = true; updateCreateBtn();
+      setSlugCheck(`Available: ${location.host}/${slug}`, 'good');
+    }).catch(() => setSlugCheck('Couldn\'t check that link. Check your connection.', 'bad'));
+  }, 300);
+}
+
+// One write creates everything, so an act is never half made:
+// membership, settings, the starter song list, the link and the account's act list.
+function createAct(){
+  const name = $('new-act').value.trim(), slug = $('new-slug').value, uid = auth.currentUser.uid;
+  if (!name || !slugOk) return;
+  const btn = $('create-btn'); btn.disabled = true; btn.textContent = 'Creating';
+  const id = db.ref('artists').push().key;
+  const starter = {};
+  window.STARTER_SONGS.forEach(x => { starter[x.id] = {id:x.id, title:x.title, artist:x.artist, era:x.era||'', genre:x.genre||'', active:true}; });
+  const u = {};
+  u[`artists/${id}/members/${uid}`] = 'owner';
+  u[`artists/${id}/settings`] = {actName:name, slug, venue:'', tipLink:'', requestMode:'list', createdAt:firebase.database.ServerValue.TIMESTAMP};
+  u[`artists/${id}/songs`] = starter;
+  u[`slugs/${slug}`] = id;
+  u[`users/${uid}/artists/${id}`] = true;
+  db.ref().update(u).then(() => {
+    $('act-gate').hidden = true;
+    start(id);
+    toast('Your page is live');
+  }).catch(() => {
+    btn.textContent = 'Create my page';
+    $('act-err').textContent = 'That didn\'t work. The link may have just been taken. Try another.';
+    checkSlug();
+  });
+}
+
+function start(id){
   if (started) return; started = true;
+  artistId = id;
 
-  db.ref('settings').on('value', s => {
+  A('settings').on('value', s => {
     settings = s.val() || {};
+    const slug = settings.slug || '';
+    document.querySelectorAll('.fanpage-link').forEach(a => a.href = ArtistLink.fanHref(slug));
+    $('qr-link').value = slug ? ArtistLink.shareUrl(slug) : '';
+    $('req-link').value = slug ? ArtistLink.shareUrl(slug) + '/songs' : '';
     $('act-name').textContent = settings.actName || 'Your act';
     $('mini-title').textContent = settings.actName || 'Your act';
     if (document.activeElement?.closest('#settings-panel') == null) {
@@ -423,19 +573,16 @@ function start(){
     }
   });
 
-  db.ref('songs').on('value', s => {
-    if (!s.exists()) {
-      db.ref('songs').set(window.STARTER_SONGS.map(x => ({...x, active:true})));
-      return;
-    }
-    const v = s.val();
+  A('songs').on('value', s => {
+    const v = s.val() || {};
     songs = (Array.isArray(v) ? v : Object.values(v)).filter(Boolean)
       .sort((a,b) => a.title.localeCompare(b.title));
     renderSongs(); renderLull();
   });
 
-  db.ref('requests/queue').on('value', s => { queueData = s.val() || {}; renderQueue(); renderLull(); });
-  db.ref('requests/played').on('value', s => { playedData = s.val() || {}; renderPlayed(); renderLull(); renderStatus(); });
+  A('requests/queue').on('value', s => { queueData = s.val() || {}; renderQueue(); renderLull(); });
+  A('requestNames').on('value', s => { nameData = s.val() || {}; renderQueue(); });
+  A('requests/played').on('value', s => { playedData = s.val() || {}; renderPlayed(); renderLull(); renderStatus(); });
 
   loadHistory().then(() => { renderLull(); renderSongs(); });
   keepAwake();
@@ -449,7 +596,7 @@ function groupQueue(){
     const sid = String(r.songId);
     if (!g[sid]) g[sid] = {songId:r.songId, title:r.title, artist:r.artist, keys:[], names:[], first:r.ts||0};
     g[sid].keys.push(key);
-    if (r.name) g[sid].names.push(r.name);
+    if (nameData[key]) g[sid].names.push(nameData[key]);
     if ((r.ts||0) < g[sid].first) g[sid].first = r.ts||0;
   });
   return Object.values(g).sort((a,b) => a.first - b.first);
@@ -502,11 +649,15 @@ function renderQueue(){
 
 function songById(id){ return songs.find(s => s.id === id); }
 
+// Each play is its own entry, so a song played twice in a night counts twice.
+// A second tap within two minutes is treated as a double tap, not a second play.
 function markPlayed(songId){
   const g = groupQueue().find(x => x.songId === songId);
   const s = songById(songId) || g || {};
-  db.ref('requests/played/'+songId).set({songId, title:s.title||'', artist:s.artist||'', ts:firebase.database.ServerValue.TIMESTAMP});
+  const justPlayed = Object.values(playedData).some(p => p && p.songId === songId && Date.now() - (p.ts||0) < 120000);
   if (g) dismiss(g.keys);
+  if (justPlayed) { toast('Already marked played'); return; }
+  A('requests/played').push({songId, title:s.title||'', artist:s.artist||'', ts:firebase.database.ServerValue.TIMESTAMP});
   toast(`Marked played: ${s.title||'song'}`);
 }
 
@@ -518,20 +669,21 @@ function skipSong(songId){
 function dismiss(keys){
   const u = {};
   keys.forEach(k => { u['requests/queue/'+k+'/dismissed'] = true; });
-  db.ref().update(u);
+  A().update(u);
 }
 
-function unmarkPlayed(songId){ db.ref('requests/played/'+songId).remove(); }
+function unmarkPlayed(key){ if (/^[-\w]+$/.test(key)) A('requests/played/'+key).remove(); }
 
 // ── PLAYED TONIGHT ────────────────────────────────────────────
 function renderPlayed(){
-  const list = Object.values(playedData).sort((a,b) => (b.ts||0) - (a.ts||0));
+  const list = Object.entries(playedData).filter(([k,p]) => p && /^[-\w]+$/.test(k))
+    .map(([key,p]) => ({...p, key})).sort((a,b) => (b.ts||0) - (a.ts||0));
   $('played-sec').hidden = !list.length;
   $('played-count').textContent = list.length || '';
   $('played-list').innerHTML = list.map(p => `
     <div class="row dim">
       <div class="main"><div class="t">${esc(p.title)}</div><div class="s">${esc(p.artist)}</div></div>
-      <button class="icon-btn" aria-label="Undo played" onclick="unmarkPlayed(${Number(p.songId)})">
+      <button class="icon-btn" aria-label="Undo played" onclick="unmarkPlayed('${p.key}')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/></svg>
       </button>
     </div>`).join('');
@@ -553,7 +705,7 @@ document.addEventListener('click', e => {
 
 // ── END THE NIGHT (archive + reset) ───────────────────────────
 function endNight(){
-  const reqs = Object.values(queueData).filter(r => r && r.songId);
+  const reqs = Object.entries(queueData).filter(([,r]) => r && r.songId).map(([k,r]) => ({...r, name:nameData[k] || null}));
   const plays = Object.values(playedData);
   if (!reqs.length && !plays.length) { toast('Nothing to save yet'); return; }
   if (!confirm(`End the night?\n\nThis saves ${plural(reqs.length,'request')} and ${plural(plays.length,'played song')} to your history, then clears the queue.`)) return;
@@ -563,14 +715,16 @@ function endNight(){
   const u = {};
   u['requestHistory/sessions/'+sessionId] = {date:today(), venue, requestCount:reqs.length, playedCount:plays.length};
   reqs.forEach(r => {
-    u['requestHistory/requests/'+db.ref().push().key] = {songId:r.songId, title:r.title||'', artist:r.artist||'', name:r.name||null, ts:r.ts||0, sessionId, venue, played:playedIds.has(String(r.songId))};
+    u['requestHistory/requests/'+A().push().key] = {songId:r.songId, title:r.title||'', artist:r.artist||'', name:r.name||null, ts:r.ts||0, sessionId, venue, played:playedIds.has(String(r.songId))};
   });
   plays.forEach(p => {
-    u['requestHistory/plays/'+db.ref().push().key] = {songId:p.songId, title:p.title||'', artist:p.artist||'', ts:p.ts||0, sessionId, venue, requested:reqIds.has(String(p.songId))};
+    u['requestHistory/plays/'+A().push().key] = {songId:p.songId, title:p.title||'', artist:p.artist||'', ts:p.ts||0, sessionId, venue, requested:reqIds.has(String(p.songId))};
   });
   u['requests/queue'] = null;
   u['requests/played'] = null;
-  db.ref().update(u).then(() => {
+  u['requestNames'] = null;
+  u['fanLast'] = null;
+  A().update(u).then(() => {
     toast('Night saved to history');
     loadHistory().then(() => { renderLull(); renderSongs(); if ($('insights-panel').open) renderInsights(); });
   }).catch(() => toast('Couldn\'t save. Check your connection and try again.'));
@@ -578,7 +732,7 @@ function endNight(){
 
 // ── HISTORY ───────────────────────────────────────────────────
 function loadHistory(){
-  return db.ref('requestHistory').once('value').then(s => {
+  return A('requestHistory').once('value').then(s => {
     const v = s.val() || {};
     hist = {requests:Object.values(v.requests||{}), plays:Object.values(v.plays||{}), sessions:v.sessions||{}, loaded:true};
   }).catch(() => { hist.loaded = true; });
@@ -595,7 +749,7 @@ function songStats(){
 function renderLull(){
   const queueEmpty = groupQueue().length === 0;
   if (!queueEmpty || !hist.loaded || !hist.requests.length) { $('lull').hidden = true; return; }
-  const st = songStats(), playedTonight = new Set(Object.keys(playedData));
+  const st = songStats(), playedTonight = new Set(Object.values(playedData).map(p => String(p && p.songId)));
   const total = Math.max(Object.keys(hist.sessions).length, 1);
   const picks = songs.filter(s => s.active !== false && !playedTonight.has(String(s.id)) && st[String(s.id)])
     .map(s => ({s, h:st[String(s.id)]}))
@@ -655,8 +809,11 @@ function renderInsights(){
 }
 
 // ── SONG LIST ─────────────────────────────────────────────────
+// Songs are stored by their id (songs/12), so the rules can check a fan's request against them.
 function saveSongs(list){
-  db.ref('songs').set(list.map(s => ({id:s.id, title:s.title, artist:s.artist, era:s.era||'', genre:s.genre||'', active:s.active !== false})));
+  const v = {};
+  list.forEach(s => { v[s.id] = {id:s.id, title:s.title, artist:s.artist, era:s.era||'', genre:s.genre||'', active:s.active !== false}; });
+  return A('songs').set(v).catch(() => toast('Couldn\'t save. Try again.'));
 }
 
 function addSong(){
@@ -723,8 +880,10 @@ function renderSongs(){
 function saveSettings(){
   let tip = $('set-tip').value.trim();
   if (tip && !/^https?:\/\//i.test(tip)) tip = 'https://' + tip;
-  db.ref('settings').update({
-    actName: $('set-act').value.trim(),
+  const actName = $('set-act').value.trim();
+  if (!actName) { toast('Add your act name'); return; }
+  A('settings').update({
+    actName,
     venue: $('set-venue').value.trim(),
     tipLink: tip
   }).then(() => {

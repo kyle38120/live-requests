@@ -6,6 +6,16 @@ When something changes, add a new entry instead of rewriting an old one, and cha
 
 | Date | Status | Decision | Why |
 | --- | --- | --- | --- |
+| 2026-11-11 | Decided | Cloud sessions push a branch; Kyle merges by pull request | Lets Kyle review each change before it reaches `main`. Replaces committing straight to `main` |
+| 2026-11-11 | Decided | One Firebase project for all acts. Each act lives under `artists/{artistId}`, with its own `members`, settings, songs, requests and history. The act's ID never changes; its link is separate | Renaming an act or its link never moves data. A members map leaves room for bandmates later |
+| 2026-11-11 | Decided | Artist links are `/[link]` for the fan page and `/[link]/songs` for the song list. 3 to 30 lowercase letters, numbers and hyphens, suggested from the act name, first come first served, with app words like `qr`, `setup` and `stage` reserved | Short enough to say from the stage, and doesn't depend on the app name or domain |
+| 2026-11-11 | Decided | When an act changes its link, the old link keeps pointing at the act and redirects | Printed QR codes and table tents never break |
+| 2026-11-11 | Decided | Performers sign in with Google or an emailed sign-in link. Fans stay anonymous | Not every artist wants to use a Google account. Fans never sign up |
+| 2026-11-11 | Decided | Fan names are visible only to the act, not in the public queue | Privacy: the public queue is readable by anyone so the song list can show request counts |
+| 2026-11-11 | Decided | Speed bump: one request per fan every 30 seconds, enforced by the security rules | Stops someone flooding the queue. A real fan almost never needs two requests within 30 seconds. A determined spammer can get a new anonymous ID, so Firebase App Check is the stronger fix later |
+| 2026-11-11 | Decided | Every play is stored as its own entry | A song played twice in a night counts twice in history |
+| 2026-11-11 | Decided | A new act starts with all 71 starter songs active, until the setup flow's song picker replaces this | A brand-new act is usable right away |
+| 2026-11-11 | Open | DJ open requests: the data model leaves room (`settings.requestMode`, and a request without a `songId`), but nothing is built | Keeps the door open without deciding the first-round question below |
 | 2026-11-11 | Decided | Next build: artist accounts and a setup flow that takes under five minutes | Nobody but us can use the app until it supports many artists. Fast setup is the whole pitch |
 | 2026-11-11 | Leaning | Patrons always use the web, with no download. A native app comes later, for artists and regular fans | Making a casual patron download an app to request one song would lose most of them. Kyle's position; Rob first wanted app-only. Confirm with Rob |
 | 2026-11-11 | Open | DJ support in the first round: "open requests" where fans type any song | DJ catalogs are effectively unlimited, so a fixed song list doesn't work for them |

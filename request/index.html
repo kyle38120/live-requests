@@ -10,6 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..800&display=swap" rel="stylesheet">
 <script src="/firebase-config.js"></script>
+<script src="/artist-link.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
@@ -129,16 +130,16 @@ button,input,select{font:inherit;color:inherit;letter-spacing:inherit}
 </head>
 <body>
 <div class="mini" id="mini" aria-hidden="true">
-  <a class="mini-btn" href="/qr" aria-label="Back" tabindex="-1"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></a>
+  <a class="mini-btn back-link" href="/qr" aria-label="Back" tabindex="-1"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></a>
   <div class="mini-title" id="mini-title">Request a song</div>
   <button class="mini-btn" type="button" onclick="jumpToSearch()" aria-label="Search songs" tabindex="-1"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
 </div>
 <div class="wrap">
   <header class="head">
-    <a class="back" href="/qr"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>Back</a>
+    <a class="back back-link" href="/qr"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>Back</a>
     <h1 id="act">Request a song</h1>
     <div class="sub" id="sub">Pick a song and it goes straight to the stage.</div>
-    <div class="search">
+    <div class="search" id="search-box">
       <input id="q" type="text" placeholder="Search songs or artists" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="Search songs or artists">
       <button class="clear" id="clear" hidden aria-label="Clear search" onclick="clearSearch()">✕</button>
     </div>
@@ -160,6 +161,7 @@ button,input,select{font:inherit;color:inherit;letter-spacing:inherit}
     <div class="note" id="limit-note" hidden>You've sent a few already tonight. Send this one too?</div>
     <label for="name">Your name (optional)</label>
     <input id="name" type="text" maxlength="40" placeholder="So they can give you a shout-out" autocomplete="given-name">
+    <div class="note" id="send-err" role="alert" hidden></div>
     <button class="btn btn-spot" id="send-btn" onclick="sendRequest()">Send request</button>
     <button class="btn btn-ghost" onclick="closeSheet()">Cancel</button>
   </div>
@@ -183,9 +185,12 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ERA_ORDER = ['60s','70s','80s','90s','2000s','2010s','2020s'];
 const SOFT_LIMIT = 2;
+const WAIT_MS = 30000;     // one request per fan every 30 seconds (enforced by database.rules.json)
 
 let songs = [], played = new Set(), counts = {}, mine = new Set(), settings = {};
-let filter = {type:'all', val:null}, query = '', pending = null, db = null;
+let filter = {type:'all', val:null}, query = '', pending = null, db = null, base = null, artistId = '';
+const slug = ArtistLink.currentSlug();
+document.querySelectorAll('.back-link').forEach(a => a.href = ArtistLink.fanHref(slug));
 
 function tipLabel(url){
   if (/venmo/i.test(url)) return 'Tip with Venmo';
@@ -195,20 +200,51 @@ function tipLabel(url){
 }
 
 // Remember this device's requests for the night, so a refresh doesn't reset them.
-const MINE_KEY = 'myRequests:' + new Date().toISOString().slice(0,10);
-try { mine = new Set(JSON.parse(localStorage.getItem(MINE_KEY) || '[]')); } catch(e) {}
+let MINE_KEY = 'myRequests:preview';
+function loadMine(){ try { mine = new Set(JSON.parse(localStorage.getItem(MINE_KEY) || '[]')); } catch(e) {} }
 function saveMine(){ try { localStorage.setItem(MINE_KEY, JSON.stringify([...mine])); } catch(e) {} }
+function lastSent(){ try { return Number(localStorage.getItem('lastRequest:' + artistId)) || 0; } catch(e) { return 0; } }
+function setLastSent(){ try { localStorage.setItem('lastRequest:' + artistId, String(Date.now())); } catch(e) {} }
+
+// No act to show: explain instead of listing songs.
+let missing = false;
+function showMissing(title, msg){
+  missing = true;
+  $('act').textContent = title; $('mini-title').textContent = title; document.title = title;
+  $('sub').textContent = msg;
+  $('search-box').hidden = true; $('chips').hidden = true;
+  $('count').textContent = ''; $('songs').innerHTML = '';
+}
 
 if (!window.isFirebaseConfigured()) {
   songs = window.STARTER_SONGS.slice();
+  loadMine();
   $('sub').textContent = 'Preview mode. Requests aren\'t connected yet.';
   renderChips(); render();
 } else {
   firebase.initializeApp(window.FIREBASE_CONFIG);
   db = firebase.database();
   // Fans sign in anonymously in the background so they can send requests.
-  firebase.auth().signInAnonymously().catch(() => {});
-  db.ref('settings').on('value', s => {
+  // If the performer is already signed in on this browser, keep them signed in:
+  // signing in anonymously would sign them out of the stage view.
+  const unsub = firebase.auth().onAuthStateChanged(user => {
+    unsub();
+    if (!user) firebase.auth().signInAnonymously().catch(() => {});
+  });
+  if (!slug) showMissing('Find your act', 'Scan the QR code at the show, or ask the performer for their link.');
+  else ArtistLink.resolve(db, slug).then(found => {
+    if (!found) { showMissing('Link not found', 'Check the link, or ask the performer for theirs.'); return; }
+    if (found.moved) { location.replace(ArtistLink.songsHref(found.moved)); return; }
+    artistId = found.artistId;
+    base = db.ref('artists/' + artistId);
+    MINE_KEY = 'myRequests:' + artistId + ':' + new Date().toISOString().slice(0,10);
+    loadMine();
+    listen();
+  }).catch(() => showMissing('Couldn\'t load', 'Check your connection and refresh the page.'));
+}
+
+function listen(){
+  base.child('settings').on('value', s => {
     settings = s.val() || {};
     const act = settings.actName || '';
     $('act').textContent = act || 'Request a song';
@@ -216,15 +252,15 @@ if (!window.isFirebaseConfigured()) {
     document.title = act ? `Request a song · ${act}` : 'Request a song';
     $('sub').textContent = settings.venue ? `Live at ${settings.venue}. Pick a song and it goes straight to the stage.` : 'Pick a song and it goes straight to the stage.';
   });
-  db.ref('songs').on('value', s => {
+  base.child('songs').on('value', s => {
     const v = s.val();
     songs = v ? (Array.isArray(v) ? v : Object.values(v)).filter(Boolean) : [];
     renderChips(); render();
   }, () => { $('count').textContent = 'Songs couldn\'t load. Refresh to try again.'; });
-  db.ref('requests/played').on('value', s => {
-    played = new Set(Object.keys(s.val() || {}).map(Number)); render();
+  base.child('requests/played').on('value', s => {
+    played = new Set(Object.values(s.val() || {}).map(p => Number(p && p.songId))); render();
   });
-  db.ref('requests/queue').on('value', s => {
+  base.child('requests/queue').on('value', s => {
     counts = {};
     Object.values(s.val() || {}).forEach(r => { if (r && r.songId && !r.dismissed) counts[r.songId] = (counts[r.songId]||0) + 1; });
     render();
@@ -250,6 +286,7 @@ function setFilter(type, val){
 }
 
 function render(){
+  if (missing) return;
   const q = query.toLowerCase().trim();
   const list = songs.filter(s => s.active !== false)
     .filter(s => filter.type === 'all' || s[filter.type] === filter.val)
@@ -300,19 +337,37 @@ function openSheet(id){
   $('sheet-title').textContent = s.title;
   $('sheet-artist').textContent = s.artist;
   $('limit-note').hidden = mine.size < SOFT_LIMIT;
+  $('send-err').hidden = true;
   $('send-btn').disabled = false; $('send-btn').textContent = 'Send request';
   $('sheet').hidden = false;
 }
 function closeSheet(){ $('sheet').hidden = true; pending = null; }
 
+function sendError(msg){
+  const btn = $('send-btn');
+  btn.disabled = false; btn.textContent = 'Send request';
+  $('send-err').textContent = msg; $('send-err').hidden = false;
+}
+const waitMessage = ms => `You just sent one. Give it ${Math.max(1, Math.ceil(ms/1000))} seconds, then send this one.`;
+
 async function sendRequest(){
   if (!pending) return;
-  if (!db) { closeSheet(); alert('Requests aren\'t connected yet.'); return; }
+  if (!base) { sendError('Preview mode. Requests aren\'t connected yet.'); return; }
+  const since = Date.now() - lastSent();
+  if (since < WAIT_MS) { sendError(waitMessage(WAIT_MS - since)); return; }
   const btn = $('send-btn'), name = $('name').value.trim();
-  btn.disabled = true; btn.textContent = 'Sending';
+  btn.disabled = true; btn.textContent = 'Sending'; $('send-err').hidden = true;
   try {
-    if (!firebase.auth().currentUser) await firebase.auth().signInAnonymously();
-    await db.ref('requests/queue').push({songId:pending.id, title:pending.title, artist:pending.artist, name:name || null, ts:firebase.database.ServerValue.TIMESTAMP});
+    const auth = firebase.auth();
+    const user = auth.currentUser || (await auth.signInAnonymously()).user;
+    // One write: the request, the fan's name (readable only by the act) and the speed-bump stamp.
+    const key = base.child('requests/queue').push().key, now = firebase.database.ServerValue.TIMESTAMP;
+    const u = {};
+    u['requests/queue/' + key] = {songId:pending.id, title:pending.title, artist:pending.artist, ts:now, fan:user.uid};
+    if (name) u['requestNames/' + key] = name;
+    u['fanLast/' + user.uid] = now;
+    await base.update(u);
+    setLastSent();
     mine.add(pending.id); saveMine();
     const act = settings.actName || 'the band';
     $('sent-msg').textContent = `${name ? name + ', ' : ''}${pending.title} is on ${act}'s list.`;
@@ -320,13 +375,14 @@ async function sendRequest(){
     if (settings.tipLink) { tip.href = settings.tipLink; tip.textContent = tipLabel(settings.tipLink); tip.hidden = false; } else tip.hidden = true;
     closeSheet(); $('sent').hidden = false; render();
   } catch(e) {
-    btn.disabled = false; btn.textContent = 'Send request';
-    alert('Your request didn\'t send. Check your connection and try again.');
+    // The rules turn a request down if this fan sent one in the last 30 seconds
+    // (for example from another tab), so say that rather than blame the connection.
+    if (e && /permission/i.test(e.code || e.message || '')) sendError('That didn\'t go through. Wait a few seconds and try again.');
+    else sendError('Your request didn\'t send. Check your connection and try again.');
   }
 }
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeSheet(); $('sent').hidden = true; } });
-if (!songs.length) render();
 </script>
 </body>
 </html>

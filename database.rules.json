@@ -1,26 +1,168 @@
 {
   "rules": {
-    "settings": {
-      ".read": true,
-      ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'"
+    "slugs": {
+      "$slug": {
+        ".read": true,
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && ((!data.exists() && newData.exists() && newData.parent().parent().child('artists').child(newData.val()).child('members').child(auth.uid).val() == 'owner') || (data.exists() && !newData.exists() && root.child('artists').child(data.val()).child('members').child(auth.uid).val() == 'owner' && newData.parent().parent().child('artists').child(data.val()).child('settings').child('slug').val() != $slug))",
+        ".validate": "newData.isString() && $slug.matches(/^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/) && !$slug.contains('--') && !$slug.matches(/^(qr|request|requests|songs|setup|signup|stage|login|signin|logout|admin|api|app|demo|help|about|terms|privacy|settings|account|images|docs|venue|venues|tip|tips|pay|live|www|static|assets|artist|artists|index|tests)$/)"
+      }
     },
-    "songs": {
-      ".read": true,
-      ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'"
-    },
-    "requests": {
-      ".read": true,
-      ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
-      "queue": {
-        "$requestId": {
-          ".write": "auth != null && !data.exists() && newData.exists()",
-          ".validate": "newData.hasChildren(['songId', 'title', 'artist', 'ts']) && newData.child('songId').isNumber() && newData.child('title').isString() && newData.child('title').val().length <= 150 && newData.child('artist').isString() && newData.child('artist').val().length <= 150 && newData.child('ts').isNumber() && (!newData.child('name').exists() || (newData.child('name').isString() && newData.child('name').val().length <= 40))"
+    "artists": {
+      "$artistId": {
+        ".validate": "newData.hasChildren(['members', 'settings'])",
+        "members": {
+          ".read": "auth != null && data.child(auth.uid).exists()",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && data.child(auth.uid).val() == 'owner'",
+          "$uid": {
+            ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid == $uid && !root.child('artists').child($artistId).exists()",
+            ".validate": "newData.val() == 'owner'"
+          }
+        },
+        "settings": {
+          ".read": true,
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && (root.child('artists').child($artistId).child('members').child(auth.uid).exists() || (!root.child('artists').child($artistId).exists() && newData.parent().child('members').child(auth.uid).val() == 'owner'))",
+          ".validate": "newData.hasChildren(['actName', 'slug', 'requestMode'])",
+          "actName": {
+            ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 60"
+          },
+          "slug": {
+            ".validate": "newData.isString() && newData.parent().parent().parent().parent().child('slugs').child(newData.val()).val() == $artistId"
+          },
+          "venue": {
+            ".validate": "newData.isString() && newData.val().length <= 80"
+          },
+          "tipLink": {
+            ".validate": "newData.isString() && newData.val().length <= 300 && (newData.val() == '' || newData.val().beginsWith('https://') || newData.val().beginsWith('http://'))"
+          },
+          "requestMode": {
+            ".validate": "newData.val() == 'list'"
+          },
+          "createdAt": {
+            ".validate": "newData.isNumber()"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "songs": {
+          ".read": true,
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && (root.child('artists').child($artistId).child('members').child(auth.uid).exists() || (!root.child('artists').child($artistId).exists() && newData.parent().child('members').child(auth.uid).val() == 'owner'))",
+          "$songId": {
+            ".validate": "newData.hasChildren(['id', 'title', 'artist', 'active']) && $songId.matches(/^[1-9][0-9]{0,5}$/)",
+            "id": {
+              ".validate": "newData.isNumber() && newData.val() + '' == $songId"
+            },
+            "title": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 150"
+            },
+            "artist": {
+              ".validate": "newData.isString() && newData.val().length <= 150"
+            },
+            "era": {
+              ".validate": "newData.isString() && newData.val().length <= 20"
+            },
+            "genre": {
+              ".validate": "newData.isString() && newData.val().length <= 30"
+            },
+            "active": {
+              ".validate": "newData.isBoolean()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "requests": {
+          ".read": true,
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && root.child('artists').child($artistId).child('members').child(auth.uid).exists()",
+          "queue": {
+            "$requestId": {
+              ".write": "auth != null && !data.exists() && newData.exists() && newData.child('fan').val() == auth.uid && newData.child('ts').val() == now && root.child('artists').child($artistId).child('songs').child(newData.child('songId').val() + '').child('active').val() == true && root.child('artists').child($artistId).child('songs').child(newData.child('songId').val() + '').child('title').val() == newData.child('title').val() && root.child('artists').child($artistId).child('songs').child(newData.child('songId').val() + '').child('artist').val() == newData.child('artist').val() && newData.parent().parent().parent().child('fanLast').child(auth.uid).val() == now",
+              ".validate": "newData.hasChildren(['songId', 'title', 'artist', 'ts', 'fan'])",
+              "songId": {
+                ".validate": "newData.isNumber()"
+              },
+              "title": {
+                ".validate": "newData.isString() && newData.val().length <= 150"
+              },
+              "artist": {
+                ".validate": "newData.isString() && newData.val().length <= 150"
+              },
+              "ts": {
+                ".validate": "newData.isNumber()"
+              },
+              "fan": {
+                ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 128"
+              },
+              "dismissed": {
+                ".validate": "newData.isBoolean()"
+              },
+              "$other": {
+                ".validate": false
+              }
+            }
+          },
+          "played": {
+            "$playId": {
+              ".validate": "newData.hasChildren(['songId', 'title', 'artist', 'ts'])",
+              "songId": {
+                ".validate": "newData.isNumber()"
+              },
+              "title": {
+                ".validate": "newData.isString() && newData.val().length <= 150"
+              },
+              "artist": {
+                ".validate": "newData.isString() && newData.val().length <= 150"
+              },
+              "ts": {
+                ".validate": "newData.isNumber()"
+              },
+              "$other": {
+                ".validate": false
+              }
+            }
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "requestNames": {
+          ".read": "auth != null && root.child('artists').child($artistId).child('members').child(auth.uid).exists()",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && root.child('artists').child($artistId).child('members').child(auth.uid).exists()",
+          "$requestId": {
+            ".write": "auth != null && !data.exists() && newData.exists() && !root.child('artists').child($artistId).child('requests').child('queue').child($requestId).exists() && newData.parent().parent().child('requests').child('queue').child($requestId).child('fan').val() == auth.uid",
+            ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40"
+          }
+        },
+        "fanLast": {
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && root.child('artists').child($artistId).child('members').child(auth.uid).exists()",
+          "$uid": {
+            ".write": "auth != null && auth.uid == $uid && newData.exists()",
+            ".validate": "newData.val() == now && (!data.exists() || now - data.val() >= 30000)"
+          }
+        },
+        "requestHistory": {
+          ".read": "auth != null && root.child('artists').child($artistId).child('members').child(auth.uid).exists()",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && root.child('artists').child($artistId).child('members').child(auth.uid).exists()"
+        },
+        "$other": {
+          ".validate": false
         }
       }
     },
-    "requestHistory": {
-      ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
-      ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'"
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid == $uid",
+        "artists": {
+          "$artistId": {
+            ".validate": "newData.val() == true"
+          }
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
     }
   }
 }
