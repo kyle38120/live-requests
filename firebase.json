@@ -1,7 +1,7 @@
 {
   "hosting": {
     "public": ".",
-    "ignore": ["firebase.json", "database.rules.json", "README.md", "**/.*", "**/node_modules/**"],
+    "ignore": ["firebase.json", "database.rules.json", "README.md", "CLAUDE.md", "docs/**", "**/.*", "**/node_modules/**"],
     "cleanUrls": true,
     "trailingSlash": false,
     "headers": [
