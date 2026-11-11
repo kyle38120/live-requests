@@ -11,7 +11,7 @@ Live Requests (working name) is a song request and tip app for live musicians an
 2. Don't act against a decision marked **Decided**. If a task seems to conflict with one, say so and ask.
 3. When you finish a roadmap item, or Kyle settles something, update both files in the same commit as the work.
 
-Planning also happens in a claude.ai Project (currently named "Duo Ops"), which holds a matching brief, `live-requests-brief.md`. If this session has the Projects tool, update that brief whenever `ROADMAP.md` or `DECISIONS.md` changes. If it doesn't, end your reply by reminding Kyle that the Project brief needs the same update. **This repo is the source of truth.** If the two disagree, the repo wins.
+Planning also happens in a claude.ai Project (currently named "Duo Ops"), which holds a matching brief, `claude/live-requests-brief.md`. If this session has the Projects tool, update that brief whenever `ROADMAP.md` or `DECISIONS.md` changes. If it doesn't, end your reply by reminding Kyle that the Project brief needs the same update. **This repo is the source of truth.** If the two disagree, the repo wins.
 
 ## The two repos
 
