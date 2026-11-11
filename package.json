@@ -1,0 +1,13 @@
+{
+  "name": "live-requests",
+  "private": true,
+  "description": "Dev tools only. The app itself is plain static pages with no build step.",
+  "scripts": {
+    "test:rules": "firebase emulators:exec --only database --project demo-live-requests \"node --test tests/rules.test.mjs\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^3.0.4",
+    "firebase": "10.12.0",
+    "firebase-tools": "^13.35.1"
+  }
+}

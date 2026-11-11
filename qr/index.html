@@ -10,6 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..800&display=swap" rel="stylesheet">
 <script src="/firebase-config.js"></script>
+<script src="/artist-link.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
@@ -89,13 +90,13 @@ body::before{display:none}
   <div class="wash" aria-hidden="true"></div>
 
   <div class="who">
-    <div class="live"><i></i>Live tonight</div>
+    <div class="live" id="live"><i></i>Live tonight</div>
     <h1 class="act" id="act">Live music</h1>
     <div class="venue" id="venue" hidden></div>
   </div>
 
-  <nav class="actions">
-    <a class="btn btn-spot" href="/request">
+  <nav class="actions" id="actions">
+    <a class="btn btn-spot" id="request-link" href="/request">
       <span><span class="l" style="display:block">Request a song</span><span class="s" style="display:block">See the set list and send one in</span></span>
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
     </a>
@@ -121,18 +122,36 @@ function tipLabel(url){
   return 'Leave a tip';
 }
 
+const slug = ArtistLink.currentSlug();
+$('request-link').href = ArtistLink.songsHref(slug);
+
+// No act to show: hide the buttons and explain.
+function showMissing(title, msg){
+  $('live').hidden = true; $('actions').hidden = true;
+  $('act').textContent = title;
+  $('venue').textContent = msg; $('venue').hidden = false;
+  document.title = title;
+}
+
 if (window.isFirebaseConfigured()) {
   firebase.initializeApp(window.FIREBASE_CONFIG);
-  firebase.database().ref('settings').on('value', s => {
-    const st = s.val() || {};
-    $('act').textContent = st.actName || 'Live music';
-    document.title = st.actName ? `${st.actName}, live tonight` : 'Live tonight';
-    $('venue').textContent = st.venue ? `at ${st.venue}` : '';
-    $('venue').hidden = !st.venue;
-    const tip = $('tip');
-    if (st.tipLink) { tip.href = st.tipLink; $('tip-label').textContent = tipLabel(st.tipLink); tip.hidden = false; }
-    else tip.hidden = true;
-  });
+  const db = firebase.database();
+  if (!slug) showMissing('Find your act', 'Scan the QR code at the show, or ask the performer for their link.');
+  else ArtistLink.resolve(db, slug).then(found => {
+    if (!found) { showMissing('Link not found', 'Check the link, or ask the performer for theirs.'); return; }
+    if (found.moved) { location.replace(ArtistLink.fanHref(found.moved)); return; }
+    db.ref('artists/' + found.artistId + '/settings').on('value', s => showSettings(s.val() || {}));
+  }).catch(() => showMissing('Couldn\'t load', 'Check your connection and refresh the page.'));
+}
+
+function showSettings(st){
+  $('act').textContent = st.actName || 'Live music';
+  document.title = st.actName ? `${st.actName}, live tonight` : 'Live tonight';
+  $('venue').textContent = st.venue ? `at ${st.venue}` : '';
+  $('venue').hidden = !st.venue;
+  const tip = $('tip');
+  if (st.tipLink) { tip.href = st.tipLink; $('tip-label').textContent = tipLabel(st.tipLink); tip.hidden = false; }
+  else tip.hidden = true;
 }
 </script>
 </body>

@@ -1,15 +1,26 @@
 {
   "hosting": {
     "public": ".",
-    "ignore": ["firebase.json", "database.rules.json", "README.md", "CLAUDE.md", "docs/**", "**/.*", "**/node_modules/**"],
+    "ignore": ["firebase.json", "database.rules.json", "README.md", "CLAUDE.md", "docs/**", "tests/**", "package.json", "package-lock.json", "*.log", "**/.*", "**/node_modules/**"],
     "cleanUrls": true,
     "trailingSlash": false,
+    "rewrites": [
+      { "source": "/*/songs", "destination": "/request/index.html" },
+      { "source": "/*", "destination": "/qr/index.html" }
+    ],
     "headers": [
       { "source": "/firebase-config.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
+      { "source": "/artist-link.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
       { "source": "**/*.html", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] }
     ]
   },
   "database": {
     "rules": "database.rules.json"
+  },
+  "emulators": {
+    "database": { "host": "127.0.0.1", "port": 9000 },
+    "hosting": { "host": "127.0.0.1", "port": 5000 },
+    "auth": { "host": "127.0.0.1", "port": 9099 },
+    "ui": { "enabled": false }
   }
 }
