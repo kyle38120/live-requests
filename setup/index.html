@@ -160,8 +160,9 @@ textarea.field{resize:vertical;min-height:180px;line-height:1.45;font-size:16px}
 
 /* STICKY BOTTOM DOCK for the songs step */
 .dock{position:sticky;bottom:calc(10px + env(safe-area-inset-bottom));margin-top:18px;border-radius:30px;padding:10px 10px 6px;z-index:5;
-  background:linear-gradient(180deg,rgba(54,54,60,.9),rgba(30,30,34,.94))}
+  background:linear-gradient(180deg,rgba(46,46,52,.96),rgba(26,26,30,.97))}
 .dock .skip{margin-top:4px}
+.breakdown{color:var(--label2);font-size:13px;text-align:center;margin:8px 8px 0}
 
 /* YOU'RE LIVE */
 .live-pill{display:inline-flex;align-items:center;gap:8px;color:var(--label);font-size:15px;font-weight:500;margin-bottom:14px;padding:6px 13px 6px 11px;border-radius:999px;background:rgba(48,209,88,.16)}
@@ -246,6 +247,7 @@ textarea.field{resize:vertical;min-height:180px;line-height:1.45;font-size:16px}
 
     <div class="dock">
       <button class="btn btn-spot btn-full" id="songs-save" type="button" onclick="saveSongs()" disabled>Add songs</button>
+      <p class="breakdown" id="songs-breakdown" aria-live="polite" hidden></p>
       <button class="linkbtn skip" id="songs-skip" type="button" onclick="skipStep()">Skip for now</button>
     </div>
     <div class="err" id="songs-err" role="alert"></div>
@@ -622,6 +624,7 @@ function parsePaste(){
 function pending(){
   const seen = new Set(haveKeys), out = [];
   STARTER.forEach(s => { if (picked.has(s.id) && !onList(s)) { seen.add(songKey(s.title, s.artist)); out.push({...s, starter:true}); } });
+  const fromStarter = out.length;
   const starterByKey = new Map(STARTER.map(s => [songKey(s.title, s.artist), s]));
   let skipped = 0, pasted = 0, over = 0;
   parsePaste().forEach(r => {
@@ -632,7 +635,7 @@ function pending(){
     const st = starterByKey.get(k);
     out.push(st ? {...st, starter:true} : {title:r.title, artist:r.artist, era:'', genre:''});
   });
-  return {out, skipped, pasted, over};
+  return {out, skipped, pasted, over, fromStarter};
 }
 
 $('paste').addEventListener('input', renderPaste);
@@ -658,9 +661,13 @@ function renderPaste(){
 }
 
 function updateSongsBtn(){
-  const n = pending().out.length, btn = $('songs-save');
+  const p = pending(), n = p.out.length, btn = $('songs-save');
   btn.disabled = !n;
   btn.textContent = n ? `Add ${plural(n, 'song')}` : 'Add songs';
+  // When the total mixes both sources, say where the songs come from.
+  const mixed = p.pasted > 0 && p.fromStarter > 0;
+  $('songs-breakdown').hidden = !mixed;
+  $('songs-breakdown').textContent = mixed ? `${p.pasted} from your paste, ${p.fromStarter} from the starter list` : '';
 }
 
 function saveSongs(){
