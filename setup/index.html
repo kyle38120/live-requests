@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#000000">
+<link rel="apple-touch-icon" href="/images/icon.png">
+<link rel="icon" href="/images/icon.png">
+<title>Set up</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..800&display=swap" rel="stylesheet">
+<script src="/firebase-config.js"></script>
+<script src="/artist-link.js"></script>
+<script src="/vendor/qrcode-generator.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  color-scheme:dark;
+  --bg:#000;
+  --label:#fff;
+  --label2:rgba(235,235,245,.62);
+  --label3:rgba(235,235,245,.32);
+  --sep:rgba(255,255,255,.11);
+  --fill:rgba(118,118,128,.26);
+  --fill2:rgba(118,118,128,.16);
+  --accent:#FF375F;
+  --warm:#FFC98B;
+  --green:#30D158;
+  --red:#FF453A;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  /* Liquid glass: a translucent pane that bends the stage light behind it */
+  --glass:linear-gradient(180deg,rgba(255,255,255,.13),rgba(255,255,255,.05));
+  --glass-blur:blur(30px) saturate(190%);
+  --glass-shadow:inset 0 1px 0 rgba(255,255,255,.17),inset 0 0 0 .5px rgba(255,255,255,.1),0 14px 34px rgba(0,0,0,.5);
+  --rim:linear-gradient(165deg,rgba(255,255,255,.55),rgba(255,255,255,.1) 28%,rgba(255,255,255,0) 55%,rgba(255,255,255,.16));
+}
+html{background:var(--bg);overscroll-behavior:none}
+body{background:none;color:var(--label);font-family:var(--font);font-size:17px;line-height:1.35;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;min-height:100vh}
+/* Stage light falling into the dark room. Everything glass refracts it. */
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(70% 42% at 50% -8%,rgba(255,170,88,.30),transparent 70%),
+             radial-gradient(55% 34% at 108% 58%,rgba(255,55,95,.17),transparent 72%),
+             radial-gradient(50% 30% at -8% 96%,rgba(110,92,255,.13),transparent 72%)}
+button,input,select,textarea{font:inherit;color:inherit;letter-spacing:inherit}
+:focus-visible{outline:2px solid rgba(255,255,255,.85);outline-offset:2px}
+[hidden]{display:none!important}
+/* Specular rim: light catching the top-left edge of a glass pane */
+.btn,.chip,.card,.dock{position:relative;isolation:isolate}
+:is(.btn,.chip,.card,.dock)::after{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;background:var(--rim);pointer-events:none;
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
+
+/* GLASS SURFACES */
+.card,.group,.toast,.dock{background:var(--glass);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);box-shadow:var(--glass-shadow)}
+
+main{max-width:560px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 22px) 16px calc(40px + env(safe-area-inset-bottom))}
+
+/* LARGE TITLE + STEP DOTS */
+.hero{padding:6px 4px 20px}
+.dots{display:flex;gap:6px;margin-bottom:16px}
+.dots i{width:22px;height:5px;border-radius:3px;background:var(--fill)}
+.dots i.done{background:rgba(255,255,255,.55)}
+.dots i.on{background:var(--accent);width:34px}
+.hero h1{font-size:34px;font-weight:700;letter-spacing:-.022em;line-height:1.08;outline:none;overflow-wrap:anywhere}
+.lead{color:var(--label2);margin-top:6px;max-width:44ch}
+.preview-note{display:inline-block;margin-top:12px;font-size:13px;color:var(--warm);background:rgba(255,201,139,.12);padding:4px 10px;border-radius:999px}
+
+/* COMPACT BAR: slides in once the large title scrolls away, like an iOS navigation bar */
+.mini{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:calc(env(safe-area-inset-top) + 12px) 16px 12px;border-radius:0 0 22px 22px;
+  background:linear-gradient(180deg,rgba(40,40,44,.74),rgba(26,26,30,.64));-webkit-backdrop-filter:blur(40px) saturate(190%);backdrop-filter:blur(40px) saturate(190%);box-shadow:var(--glass-shadow);
+  transform:translateY(-110%);opacity:0;pointer-events:none;transition:transform .32s cubic-bezier(.25,1.2,.5,1),opacity .2s}
+.mini.show{transform:none;opacity:1;pointer-events:auto}
+.mini-title{max-width:70vw;font-size:17px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* CARDS */
+.card{border-radius:28px;padding:20px 18px}
+.card+.card{margin-top:14px}
+.card h3{font-size:17px;font-weight:600;margin-bottom:4px}
+.card .s{color:var(--label2);font-size:15px}
+.stack>*+*{margin-top:14px}
+label.lbl{display:block;font-size:13px;color:var(--label2);margin:0 4px 6px}
+.check{font-size:13px;color:var(--label2);margin:6px 4px 0;min-height:1.3em;overflow-wrap:anywhere}
+.check.good{color:var(--green)}
+.check.bad{color:var(--red)}
+.err{color:var(--red);font-size:15px;min-height:1.4em;margin:8px 4px 0}
+.err:empty{display:none}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;border-radius:999px;padding:14px 22px;font-weight:600;font-size:17px;cursor:pointer;text-decoration:none;color:var(--label);transition:transform .25s cubic-bezier(.3,1.5,.5,1),background .2s;text-align:center}
+.btn:active{transform:scale(.96)}
+.btn-spot{background:linear-gradient(180deg,rgba(255,96,130,.96),rgba(255,55,95,.9));color:#fff;box-shadow:0 8px 22px rgba(255,55,95,.32),inset 0 1px 0 rgba(255,255,255,.3)}
+.btn-ghost{background:rgba(255,255,255,.1);box-shadow:inset 0 1px 0 rgba(255,255,255,.1)}
+.btn-ghost:active{background:rgba(255,255,255,.2)}
+.btn-full{width:100%}
+.btn-sm{padding:10px 18px;font-size:15px}
+.btn:disabled{opacity:.45;cursor:default;transform:none}
+.linkbtn{background:none;border:none;color:var(--accent);font-weight:600;font-size:15px;cursor:pointer;padding:8px 4px;text-decoration:none}
+.skip{display:block;margin:10px auto 0;color:var(--label2);font-weight:500}
+.row-btns{display:flex;gap:10px}
+.row-btns .btn{flex:1}
+
+/* FIELDS */
+.field{width:100%;background:var(--fill);border:none;border-radius:14px;padding:13px 16px;font-size:17px;outline:none;box-shadow:inset 0 0 0 1.5px transparent;transition:box-shadow .15s,background .15s}
+.field:focus{box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.45);background:rgba(118,118,128,.32)}
+.field::placeholder{color:var(--label3)}
+textarea.field{resize:vertical;min-height:180px;line-height:1.45;font-size:16px}
+.field.search{border-radius:999px;padding-left:42px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='rgba(235,235,245,0.6)' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-3.5-3.5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:15px 50%;background-size:17px}
+.affix{display:flex;align-items:center;background:var(--fill);border-radius:14px;box-shadow:inset 0 0 0 1.5px transparent;transition:box-shadow .15s}
+.affix:focus-within{box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.45)}
+.affix span{padding-left:16px;color:var(--label2);font-size:17px}
+.affix .field{background:none;box-shadow:none}
+.affix span+.field{padding-left:2px}
+
+/* SEGMENTED CONTROL */
+.seg{display:flex;background:var(--fill2);border-radius:999px;padding:3px;gap:2px}
+.seg button{flex:1;border:none;background:none;border-radius:999px;padding:9px 10px;font-size:15px;font-weight:600;color:var(--label2);cursor:pointer;transition:background .2s,color .2s;white-space:nowrap}
+.seg button[aria-selected="true"]{background:rgba(255,255,255,.22);color:var(--label);box-shadow:0 2px 8px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.14)}
+
+/* CHIPS */
+.chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:10px -16px 0;padding:2px 16px}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex-shrink:0;border:none;background:rgba(255,255,255,.1);color:var(--label);padding:8px 16px;border-radius:999px;font-size:15px;font-weight:500;cursor:pointer;white-space:nowrap;transition:background .2s,color .2s}
+.chip.on{background:#fff;color:#000}
+
+/* SONG PICKER */
+.pick-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:16px 4px 10px}
+.pick-top .s{color:var(--label2);font-size:15px}
+.group{border-radius:22px;padding:0 16px}
+.group:empty{display:none}
+.pick{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:none;border:none;border-bottom:.5px solid var(--sep);padding:12px 0;cursor:pointer}
+.pick:last-child{border-bottom:none}
+.pick .main{flex:1;min-width:0}
+.pick .t{font-weight:500;line-height:1.25}
+.pick .a{color:var(--label2);font-size:15px}
+.pick .m{color:var(--label3);font-size:13px;flex-shrink:0;text-align:right}
+.box{width:26px;height:26px;border-radius:50%;flex-shrink:0;box-shadow:inset 0 0 0 2px var(--label3);display:flex;align-items:center;justify-content:center;color:#fff;transition:background .15s,box-shadow .15s}
+.box svg{opacity:0}
+.pick[aria-checked="true"] .box{background:var(--accent);box-shadow:none}
+.pick[aria-checked="true"] .box svg{opacity:1}
+.pick:disabled{cursor:default}
+.pick:disabled .box{background:var(--fill);box-shadow:none}
+.pick:disabled .box svg{opacity:.6}
+.pick:disabled .t{color:var(--label2)}
+.none{color:var(--label2);text-align:center;padding:24px 8px;font-size:15px}
+
+.paste-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:14px 4px 10px;flex-wrap:wrap}
+.paste-head .s{color:var(--label2);font-size:15px}
+.paste-head .s b{color:var(--label);font-weight:600}
+.toggle{border:none;border-radius:999px;padding:8px 14px;font-size:15px;font-weight:500;cursor:pointer;background:rgba(255,255,255,.1);color:var(--label)}
+.toggle[aria-pressed="true"]{background:#fff;color:#000}
+.prow{display:flex;gap:10px;padding:11px 0;border-bottom:.5px solid var(--sep)}
+.prow:last-child{border-bottom:none}
+.prow .t{font-weight:500;line-height:1.25}
+.prow .a{color:var(--label2);font-size:15px}
+.prow .a.missing{color:var(--label3);font-style:italic}
+.more{color:var(--label2);font-size:13px;padding:10px 0}
+.skipped{color:var(--label2);font-size:13px;margin:8px 4px 0}
+
+/* STICKY BOTTOM DOCK for the songs step */
+.dock{position:sticky;bottom:calc(10px + env(safe-area-inset-bottom));margin-top:18px;border-radius:30px;padding:10px 10px 6px;z-index:5;
+  background:linear-gradient(180deg,rgba(46,46,52,.96),rgba(26,26,30,.97))}
+.dock .skip{margin-top:4px}
+.breakdown{color:var(--label2);font-size:13px;text-align:center;margin:8px 8px 0}
+
+/* YOU'RE LIVE */
+.live-pill{display:inline-flex;align-items:center;gap:8px;color:var(--label);font-size:15px;font-weight:500;margin-bottom:14px;padding:6px 13px 6px 11px;border-radius:999px;background:rgba(48,209,88,.16)}
+.live-pill i{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px rgba(48,209,88,.75)}
+.link-big{font-size:22px;font-weight:700;letter-spacing:-.016em;line-height:1.2;overflow-wrap:anywhere;margin:4px 0 14px}
+.qr-wrap{display:flex;flex-direction:column;align-items:center;text-align:center}
+.qr-card{background:#fff;border-radius:20px;padding:0;overflow:hidden;margin:6px 0 14px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.qr-card canvas{display:block;width:232px;height:232px}
+.warn{background:rgba(255,201,139,.12);border-radius:22px;padding:16px 18px}
+.warn strong{display:block;color:var(--warm);font-weight:600}
+.warn p{color:var(--label2);font-size:15px;margin:2px 0 14px}
+.after{margin-top:22px}
+.after .btn+.btn{margin-top:10px}
+
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px) scale(.96);background:linear-gradient(180deg,rgba(80,80,86,.7),rgba(50,50,56,.7));color:#fff;padding:13px 22px;border-radius:999px;font-weight:600;font-size:15px;opacity:0;pointer-events:none;transition:opacity .2s,transform .3s cubic-bezier(.3,1.4,.5,1);z-index:60;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
+
+.loading{color:var(--label2);text-align:center;padding:80px 20px}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.card,.group,.toast,.dock,.mini{background:#1C1C1E}}
+</style>
+</head>
+<body>
+
+<div class="mini" id="mini" aria-hidden="true"><div class="mini-title" id="mini-title"></div></div>
+
+<main>
+  <div class="loading" id="loading" role="status">Loading</div>
+
+  <header class="hero" id="hero" hidden>
+    <div class="dots" id="dots" role="img"><i></i><i></i><i></i></div>
+    <div class="live-pill" id="live-pill" hidden><i></i>Live</div>
+    <h1 id="title" tabindex="-1"></h1>
+    <p class="lead" id="lead"></p>
+    <span class="preview-note" id="preview-note" hidden>Preview mode. Nothing is saved.</span>
+  </header>
+
+  <!-- STEP 1: NAME YOUR ACT -->
+  <section id="step-name" hidden>
+    <form class="card stack" onsubmit="event.preventDefault(); createAct()">
+      <div>
+        <label class="lbl" for="new-act">Act name</label>
+        <input class="field" id="new-act" placeholder="e.g. The Doorknobs" maxlength="60" autocomplete="off">
+      </div>
+      <div>
+        <label class="lbl" for="new-slug">Your link</label>
+        <input class="field" id="new-slug" placeholder="the-doorknobs" maxlength="30" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
+        <div class="check" id="slug-check" aria-live="polite"></div>
+      </div>
+      <button class="btn btn-spot btn-full" id="create-btn" type="submit" disabled>Create my page</button>
+    </form>
+    <div class="err" id="act-err" role="alert"></div>
+  </section>
+
+  <!-- STEP 2: PICK YOUR SONGS -->
+  <section id="step-songs" hidden>
+    <div class="seg" role="tablist" aria-label="How to add songs">
+      <button type="button" role="tab" id="tab-starter-btn" aria-controls="tab-starter" aria-selected="true" onclick="setTab('starter')">Starter list</button>
+      <button type="button" role="tab" id="tab-paste-btn" aria-controls="tab-paste" aria-selected="false" onclick="setTab('paste')">Paste a list</button>
+    </div>
+
+    <div id="tab-starter" role="tabpanel" aria-labelledby="tab-starter-btn">
+      <button class="btn btn-ghost btn-full" id="select-all" type="button" onclick="toggleAll()" style="margin-top:16px"></button>
+      <input class="field search" id="song-q" placeholder="Search the starter list" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="Search the starter list" style="margin-top:14px">
+      <div class="chips" id="genre-chips" role="group" aria-label="Filter by genre"></div>
+      <div class="chips" id="era-chips" role="group" aria-label="Filter by decade"></div>
+      <div class="pick-top"><span class="s" id="picked-count" aria-live="polite"></span></div>
+      <div class="group" id="starter-list"></div>
+    </div>
+
+    <div id="tab-paste" role="tabpanel" aria-labelledby="tab-paste-btn" hidden>
+      <p class="lead" style="margin:16px 4px 10px;font-size:15px">One song per line, written "Title - Artist". Copy it from your notes or a set list.</p>
+      <textarea class="field" id="paste" aria-label="Paste your songs" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Wonderwall - Oasis&#10;Valerie - Amy Winehouse&#10;Semi-Charmed Life - Third Eye Blind"></textarea>
+      <div class="paste-head" id="paste-head" hidden>
+        <span class="s" id="paste-count" aria-live="polite"></span>
+        <button class="toggle" id="swap" type="button" aria-pressed="false" onclick="toggleSwap()">Swap song and artist</button>
+      </div>
+      <div class="group" id="paste-preview"></div>
+      <p class="skipped" id="paste-skipped" hidden></p>
+    </div>
+
+    <div class="dock">
+      <button class="btn btn-spot btn-full" id="songs-save" type="button" onclick="saveSongs()" disabled>Add songs</button>
+      <p class="breakdown" id="songs-breakdown" aria-live="polite" hidden></p>
+      <button class="linkbtn skip" id="songs-skip" type="button" onclick="skipStep()">Skip for now</button>
+    </div>
+    <div class="err" id="songs-err" role="alert"></div>
+  </section>
+
+  <!-- STEP 3: TIP LINK -->
+  <section id="step-tip" hidden>
+    <div class="card stack">
+      <div class="seg" role="tablist" aria-label="Tip service">
+        <button type="button" role="tab" aria-selected="true" data-svc="venmo" onclick="setService('venmo')">Venmo</button>
+        <button type="button" role="tab" aria-selected="false" data-svc="cash" onclick="setService('cash')">Cash App</button>
+        <button type="button" role="tab" aria-selected="false" data-svc="other" onclick="setService('other')">Other link</button>
+      </div>
+      <div>
+        <label class="lbl" for="tip-in" id="tip-lbl">Your Venmo username</label>
+        <div class="affix"><span id="tip-prefix">@</span><input class="field" id="tip-in" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"></div>
+        <div class="check" id="tip-check" aria-live="polite"></div>
+      </div>
+      <button class="btn btn-spot btn-full" id="tip-save" type="button" onclick="saveTip()" disabled>Save tip link</button>
+    </div>
+    <button class="linkbtn skip" id="tip-skip" type="button" onclick="skipStep()">Skip for now</button>
+    <div class="err" id="tip-err" role="alert"></div>
+  </section>
+
+  <!-- STEP 4: YOU'RE LIVE -->
+  <section id="step-live" hidden>
+    <div class="warn" id="no-songs" hidden>
+      <strong>Fans can't request yet</strong>
+      <p>Add songs first. Until then your fan page says "No songs yet".</p>
+      <a class="btn btn-spot btn-full" id="no-songs-btn" href="#">Add songs</a>
+    </div>
+
+    <div class="card" style="margin-top:14px" id="link-card">
+      <h3>Your link</h3>
+      <div class="link-big" id="live-link"></div>
+      <div class="row-btns">
+        <button class="btn btn-ghost btn-sm" type="button" onclick="copyLink()">Copy</button>
+        <button class="btn btn-ghost btn-sm" id="share-btn" type="button" onclick="shareLink()" hidden>Share</button>
+      </div>
+    </div>
+
+    <div class="card qr-wrap">
+      <h3>Your QR code</h3>
+      <p class="s">Put it on a table tent, your mic stand or the screen behind you.</p>
+      <div class="qr-card" id="qr-card"><canvas id="qr" width="432" height="432" role="img" aria-label="QR code for your fan page"></canvas></div>
+      <p class="s" id="qr-fail" hidden>Couldn't make the QR code. Your link still works.</p>
+      <button class="btn btn-ghost btn-full" id="qr-download" type="button" onclick="downloadQR()">Download QR code</button>
+    </div>
+
+    <div class="after">
+      <a class="btn btn-spot btn-full" id="to-stage" href="/">Open the stage view</a>
+      <a class="btn btn-ghost btn-full" id="to-fan" href="/qr" target="_blank" rel="noopener">See your fan page</a>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script>
+// ── HELPERS ───────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+const ERAS = ['60s','70s','80s','90s','2000s','2010s','2020s'];
+const STARTER = (window.STARTER_SONGS || []).slice().sort((a,b) => a.title.localeCompare(b.title));
+const STARTER_MAX = STARTER.reduce((m,s) => Math.max(m, s.id), 0);
+const PASTE_LIMIT = 500;
+const songKey = (t, a) => (String(t||'') + '\u0000' + String(a||'')).toLowerCase().replace(/\s+/g, ' ').trim();
+const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function toast(msg){
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// Same wording the fan pages use on the tip button.
+function tipLabel(url){
+  if (/venmo/i.test(url)) return 'Tip with Venmo';
+  if (/cash\.app|cashapp/i.test(url)) return 'Tip with Cash App';
+  if (/paypal/i.test(url)) return 'Tip with PayPal';
+  return 'Leave a tip';
+}
+
+const APP = window.APP_NAME || 'Live Requests';
+
+// ── STATE ─────────────────────────────────────────────────────
+// Opened from the stage view to finish one step: save or cancel goes back there.
+const FROM_STAGE = new URLSearchParams(location.search).get('from') === 'stage';
+const preview = !window.isFirebaseConfigured();
+let db = null, auth = null, uid = '';
+let act = null;            // {id, settings, songs:{id: song}}
+let step = '';
+const A = path => db.ref('artists/' + act.id + (path ? '/' + path : ''));   // this act's data
+
+// ── STEPS ─────────────────────────────────────────────────────
+const STEP_TEXT = {
+  name:  {title:'Name your act', lead:'Fans see this name when they request a song. You can change it later.'},
+  songs: {title:'Pick your songs', lead:'Choose the songs fans can request. You can add, rest or remove songs any time from the stage view.'},
+  tip:   {title:'Add a tip link', lead:'Fans see a tip button on your page and after they send a request. This is optional.'},
+  live:  {title:'You’re live', lead:'Share this link or QR code at your show. Requests show up in the stage view.'}
+};
+const DOT = {name:0, songs:1, tip:2};
+
+function urlFor(s){
+  const q = new URLSearchParams({step:s});
+  if (FROM_STAGE) q.set('from', 'stage');
+  return location.pathname + '?' + q;
+}
+// The step to show for a requested one. No act yet means naming it comes first.
+function allowed(s){
+  if (!act) return 'name';
+  return ['songs','tip','live'].includes(s) ? s : 'live';
+}
+function go(s, how = 'push'){
+  s = allowed(s);
+  if (how === 'push') history.pushState({step:s}, '', urlFor(s));
+  else if (how === 'replace') history.replaceState({step:s}, '', urlFor(s));
+  show(s);
+}
+addEventListener('popstate', () => show(allowed(new URLSearchParams(location.search).get('step'))));
+
+function show(s){
+  step = s;
+  $('loading').hidden = true; $('hero').hidden = false;
+  ['name','songs','tip','live'].forEach(x => { $('step-' + x).hidden = x !== s; });
+  const text = STEP_TEXT[s];
+  let title = text.title, lead = text.lead;
+  if (s === 'live' && FROM_STAGE) { title = 'Your link and QR code'; lead = 'Share this link or QR code at your show.'; }
+  $('title').textContent = title; $('mini-title').textContent = title; $('lead').textContent = lead;
+  document.title = title + ' · ' + APP;
+  // Step dots: name, songs, tips. Hidden for the live screen and single steps from the stage view.
+  const dots = $('dots'), i = DOT[s];
+  dots.hidden = FROM_STAGE || i === undefined;
+  if (i !== undefined) {
+    [...dots.children].forEach((d, n) => d.className = n < i ? 'done' : n === i ? 'on' : '');
+    dots.setAttribute('aria-label', `Step ${i + 1} of 3`);
+  }
+  $('live-pill').hidden = !(s === 'live' && !FROM_STAGE);
+  $('songs-skip').textContent = FROM_STAGE ? 'Cancel' : 'Skip for now';
+  $('tip-skip').textContent = FROM_STAGE ? 'Cancel' : 'Skip for now';
+  if (s === 'songs') enterSongs();
+  if (s === 'tip') enterTip();
+  if (s === 'live') enterLive();
+  window.scrollTo(0, 0);
+  if (s === 'name') setTimeout(() => $('new-act').focus(), 50);
+  else $('title').focus({preventScroll:true});
+}
+
+function skipStep(){
+  if (FROM_STAGE) { location.href = '/'; return; }
+  go(step === 'songs' ? 'tip' : 'live');
+}
+
+// Compact bar: show it once the large title has scrolled under the top of the screen.
+(function(){
+  const mini = $('mini'), title = $('title');
+  const set = on => { mini.classList.toggle('show', on); mini.setAttribute('aria-hidden', on ? 'false' : 'true'); };
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(([e]) => set(!e.isIntersecting && e.boundingClientRect.top < 0), {rootMargin:'-56px 0px 0px 0px'}).observe(title);
+  } else {
+    addEventListener('scroll', () => set(title.getBoundingClientRect().bottom < 56), {passive:true});
+  }
+})();
+
+// ── BOOT ──────────────────────────────────────────────────────
+const firstStep = new URLSearchParams(location.search).get('step');
+if (preview) {
+  $('preview-note').hidden = false;
+  // Preview mode walks through the flow without saving. A step named in the
+  // address gets a sample act so it can be looked at on its own.
+  if (firstStep && firstStep !== 'name') act = {id:'preview', settings:{actName:'The Doorknobs', slug:'the-doorknobs', tipLink:''}, songs:{}};
+  go(firstStep, 'replace');
+} else {
+  firebase.initializeApp(window.FIREBASE_CONFIG);
+  db = firebase.database();
+  auth = firebase.auth();
+  auth.onAuthStateChanged(user => {
+    // Sign-in lives on the stage view. Come back here once signed in.
+    if (!user || user.isAnonymous) { location.replace('/'); return; }
+    if (uid) return;
+    uid = user.uid;
+    loadAct().then(() => go(firstStep, 'replace')).catch(() => {
+      $('loading').textContent = 'Couldn’t load your act. Check your connection and refresh.';
+    });
+  });
+}
+
+function loadAct(){
+  return db.ref('users/' + uid + '/artists').once('value').then(s => {
+    const id = Object.keys(s.val() || {})[0];
+    if (!id) return;
+    return Promise.all([
+      db.ref('artists/' + id + '/settings').once('value'),
+      db.ref('artists/' + id + '/songs').once('value')
+    ]).then(([st, sg]) => {
+      const v = sg.val() || {}, songs = {};
+      (Array.isArray(v) ? v : Object.values(v)).filter(Boolean).forEach(x => { songs[x.id] = x; });
+      act = {id, settings: st.val() || {}, songs};
+    });
+  });
+}
+
+// ── STEP 1: NAME YOUR ACT ─────────────────────────────────────
+let slugEdited = false, slugTimer = null, slugOk = false;
+$('new-act').addEventListener('input', function(){
+  if (!slugEdited) $('new-slug').value = ArtistLink.slugify(this.value);
+  checkSlug();
+});
+$('new-slug').addEventListener('input', function(){
+  slugEdited = true;
+  const v = this.value.toLowerCase().replace(/[\s_]+/g, '-').replace(/[^a-z0-9-]/g, '');
+  if (v !== this.value) this.value = v;
+  checkSlug();
+});
+function setSlugCheck(text, cls){
+  const c = $('slug-check'); c.textContent = text; c.className = 'check' + (cls ? ' ' + cls : '');
+}
+function updateCreateBtn(){ $('create-btn').disabled = !(slugOk && $('new-act').value.trim()); }
+function checkSlug(){
+  const slug = $('new-slug').value;
+  slugOk = false; updateCreateBtn(); clearTimeout(slugTimer); $('act-err').textContent = '';
+  if (!slug) { setSlugCheck(''); return; }
+  const problem = ArtistLink.slugProblem(slug);
+  if (problem) { setSlugCheck(problem, 'bad'); return; }
+  if (preview) { slugOk = true; updateCreateBtn(); setSlugCheck(`Preview mode: links aren't checked. ${location.host}/${slug}`, 'good'); return; }
+  setSlugCheck('Checking');
+  slugTimer = setTimeout(() => {
+    db.ref('slugs/' + slug).once('value').then(s => {
+      if ($('new-slug').value !== slug) return;
+      if (s.exists()) { setSlugCheck('That link is taken. Try another.', 'bad'); return; }
+      slugOk = true; updateCreateBtn();
+      setSlugCheck(`Available: ${location.host}/${slug}`, 'good');
+    }).catch(() => setSlugCheck('Couldn\'t check that link. Check your connection.', 'bad'));
+  }, 300);
+}
+
+// One write creates the act, so it's never half made: membership, settings,
+// the link and the account's act list. Songs come next, in their own step.
+function createAct(){
+  const name = $('new-act').value.trim(), slug = $('new-slug').value;
+  if (!name || !slugOk) return;
+  const settings = {actName:name, slug, venue:'', tipLink:'', requestMode:'list'};
+  if (preview) { act = {id:'preview', settings, songs:{}}; go('songs', 'replace'); return; }
+  const btn = $('create-btn'); btn.disabled = true; btn.textContent = 'Creating';
+  const id = db.ref('artists').push().key;
+  const u = {};
+  u[`artists/${id}/members/${uid}`] = 'owner';
+  u[`artists/${id}/settings`] = {...settings, createdAt:firebase.database.ServerValue.TIMESTAMP};
+  u[`slugs/${slug}`] = id;
+  u[`users/${uid}/artists/${id}`] = true;
+  db.ref().update(u).then(() => {
+    act = {id, settings, songs:{}};
+    go('songs', 'replace');   // naming is done: the back gesture shouldn't return to it
+  }).catch(() => {
+    btn.textContent = 'Create my page';
+    $('act-err').textContent = 'That didn\'t work. The link may have just been taken. Try another.';
+    checkSlug();
+  });
+}
+
+// ── STEP 2: PICK YOUR SONGS ───────────────────────────────────
+let picked = new Set(), genreF = '', eraF = '', songQ = '', swap = false, tab = 'starter';
+let haveKeys = new Set();   // title+artist of songs already on the act's list
+
+function enterSongs(){
+  haveKeys = new Set(Object.values(act.songs).map(s => songKey(s.title, s.artist)));
+  [...picked].forEach(id => { const s = STARTER.find(x => x.id === id); if (s && onList(s)) picked.delete(id); });
+  renderChips(); renderStarter(); renderPaste();
+}
+const onList = s => haveKeys.has(songKey(s.title, s.artist));
+
+function setTab(t){
+  tab = t;
+  $('tab-starter-btn').setAttribute('aria-selected', t === 'starter');
+  $('tab-paste-btn').setAttribute('aria-selected', t === 'paste');
+  $('tab-starter').hidden = t !== 'starter';
+  $('tab-paste').hidden = t !== 'paste';
+  if (t === 'paste') $('paste').focus();
+}
+
+function renderChips(){
+  const genres = [...new Set(STARTER.map(s => s.genre).filter(Boolean))].sort();
+  const eras = ERAS.filter(e => STARTER.some(s => s.era === e));
+  const chip = (kind, val, label, on) => `<button class="chip${on ? ' on' : ''}" type="button" data-kind="${kind}" data-val="${esc(val)}" aria-pressed="${on}">${esc(label)}</button>`;
+  $('genre-chips').innerHTML = chip('genre', '', 'All genres', !genreF) + genres.map(g => chip('genre', g, g, genreF === g)).join('');
+  $('era-chips').innerHTML = chip('era', '', 'All decades', !eraF) + eras.map(e => chip('era', e, e, eraF === e)).join('');
+}
+['genre-chips','era-chips'].forEach(id => $(id).addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if (!b) return;
+  const v = b.dataset.val;
+  if (b.dataset.kind === 'genre') genreF = genreF === v ? '' : v;
+  else eraF = eraF === v ? '' : v;
+  renderChips(); renderStarter();
+}));
+$('song-q').addEventListener('input', function(){ songQ = this.value; renderStarter(); });
+
+function shownStarter(){
+  const q = songQ.toLowerCase().trim();
+  return STARTER.filter(s => (!genreF || s.genre === genreF) && (!eraF || s.era === eraF) &&
+    (!q || s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q)));
+}
+
+const CHECK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+function renderStarter(){
+  const list = shownStarter();
+  $('starter-list').innerHTML = list.length ? list.map(s => {
+    const have = onList(s), on = have || picked.has(s.id);
+    const meta = have ? 'On your list' : [s.era, s.genre].filter(Boolean).join(' · ');
+    return `<button class="pick" type="button" role="checkbox" aria-checked="${on}" data-id="${Number(s.id)}"${have ? ' disabled' : ''}>
+      <span class="box">${CHECK}</span>
+      <span class="main"><span class="t" style="display:block">${esc(s.title)}</span><span class="a" style="display:block">${esc(s.artist)}</span></span>
+      <span class="m">${esc(meta)}</span>
+    </button>`;
+  }).join('') : '';
+  if (!list.length) $('starter-list').innerHTML = '<p class="none">No starter songs match.</p>';
+  // "Select all" covers what's showing, so a filter makes it "select all 90s songs".
+  const open = list.filter(s => !onList(s));
+  const filtered = !!(genreF || eraF || songQ.trim());
+  const all = open.length > 0 && open.every(s => picked.has(s.id));
+  const btn = $('select-all');
+  btn.hidden = !open.length;
+  btn.textContent = all ? (filtered ? `Clear these ${open.length}` : `Clear all ${open.length}`) : `Select all ${open.length}`;
+  const avail = STARTER.filter(s => !onList(s)).length;
+  $('picked-count').textContent = avail ? `${picked.size} of ${avail} picked` : 'Every starter song is already on your list.';
+  updateSongsBtn();
+}
+$('starter-list').addEventListener('click', e => {
+  const b = e.target.closest('.pick'); if (!b || b.disabled) return;
+  const id = Number(b.dataset.id);
+  picked.has(id) ? picked.delete(id) : picked.add(id);
+  renderStarter();
+});
+function toggleAll(){
+  const open = shownStarter().filter(s => !onList(s));
+  const all = open.every(s => picked.has(s.id));
+  open.forEach(s => all ? picked.delete(s.id) : picked.add(s.id));
+  renderStarter();
+}
+
+// Paste a list: one "Title - Artist" per line.
+// Separators, in order: a spaced hyphen, then an en or em dash or a tab, and only
+// as a last resort a hyphen with a space on one side. A hyphen between two letters
+// never splits, so "Ob-La-Di, Ob-La-Da" and "Semi-Charmed Life" stay whole.
+function parseLine(raw){
+  let line = String(raw).replace(/^\s*(?:\d{1,4}[.)]\s*|[-*•·]\s+)/, '').trim();
+  if (!line) return null;
+  const m = line.match(/^(.+?)\s+-\s+(.+)$/)
+    || line.match(/^(.+?)\s*[–—]\s*(.+)$/)
+    || line.match(/^(.+?)\t+(.+)$/)
+    || line.match(/^(.+?)(?:\s-|-\s)(.+)$/);
+  let title = m ? m[1] : line, artist = m ? m[2] : '';
+  const clean = s => s.trim().replace(/^["“‘'](.*)["”’']$/, '$1').trim().slice(0, 150);
+  title = clean(title); artist = clean(artist);
+  if (!title) return null;
+  return {title, artist};
+}
+function parsePaste(){
+  const rows = [];
+  for (const line of $('paste').value.split(/\r?\n/)) {
+    const r = parseLine(line);
+    if (!r) continue;
+    if (swap && r.artist) rows.push({title:r.artist, artist:r.title});
+    else rows.push(r);
+  }
+  return rows;
+}
+
+// Everything that will be added: picked starter songs, then pasted songs.
+// Duplicates of songs already on the list (or picked twice) are left out.
+// A pasted song that matches a starter song uses the starter entry, with its id, genre and decade.
+function pending(){
+  const seen = new Set(haveKeys), out = [];
+  STARTER.forEach(s => { if (picked.has(s.id) && !onList(s)) { seen.add(songKey(s.title, s.artist)); out.push({...s, starter:true}); } });
+  const fromStarter = out.length;
+  const starterByKey = new Map(STARTER.map(s => [songKey(s.title, s.artist), s]));
+  let skipped = 0, pasted = 0, over = 0;
+  parsePaste().forEach(r => {
+    const k = songKey(r.title, r.artist);
+    if (seen.has(k)) { skipped++; return; }
+    if (pasted >= PASTE_LIMIT) { over++; return; }
+    seen.add(k); pasted++;
+    const st = starterByKey.get(k);
+    out.push(st ? {...st, starter:true} : {title:r.title, artist:r.artist, era:'', genre:''});
+  });
+  return {out, skipped, pasted, over, fromStarter};
+}
+
+$('paste').addEventListener('input', renderPaste);
+function toggleSwap(){
+  swap = !swap;
+  $('swap').setAttribute('aria-pressed', swap);
+  renderPaste();
+}
+function renderPaste(){
+  const rows = parsePaste(), p = pending();
+  $('paste-head').hidden = !rows.length;
+  $('paste-count').innerHTML = rows.length ? `<b>${plural(rows.length, 'song')}</b> found` : '';
+  $('paste-preview').innerHTML = rows.slice(0, 5).map(r => `<div class="prow"><div style="min-width:0">
+      <div class="t">${esc(r.title)}</div>
+      <div class="a${r.artist ? '' : ' missing'}">${r.artist ? esc(r.artist) : 'No artist'}</div>
+    </div></div>`).join('') + (rows.length > 5 ? `<div class="more">and ${rows.length - 5} more</div>` : '');
+  const notes = [];
+  if (p.skipped) notes.push(`${plural(p.skipped, 'song')} already on your list or picked twice, so ${p.skipped === 1 ? 'it' : 'they'}'ll be skipped.`);
+  if (p.over) notes.push(`Only the first ${PASTE_LIMIT} pasted songs are added.`);
+  $('paste-skipped').textContent = notes.join(' ');
+  $('paste-skipped').hidden = !notes.length;
+  updateSongsBtn();
+}
+
+function updateSongsBtn(){
+  const p = pending(), n = p.out.length, btn = $('songs-save');
+  btn.disabled = !n;
+  btn.textContent = n ? `Add ${plural(n, 'song')}` : 'Add songs';
+  // When the total mixes both sources, say where the songs come from.
+  const mixed = p.pasted > 0 && p.fromStarter > 0;
+  $('songs-breakdown').hidden = !mixed;
+  $('songs-breakdown').textContent = mixed ? `${p.pasted} from your paste, ${p.fromStarter} from the starter list` : '';
+}
+
+function saveSongs(){
+  const {out} = pending();
+  if (!out.length) return;
+  // Starter songs keep their starter id. Other songs get ids above every starter id,
+  // so adding a starter song later can never collide. Ids are never reused.
+  let next = Math.max(STARTER_MAX, ...Object.keys(act.songs).map(Number).filter(n => n > 0)) + 1;
+  const u = {};
+  out.forEach(s => {
+    const id = s.starter && !act.songs[s.id] && !u[s.id] ? s.id : next++;
+    u[id] = {id, title:s.title, artist:s.artist, era:s.era || '', genre:s.genre || '', active:true};
+  });
+  const done = () => {
+    Object.assign(act.songs, u);
+    picked.clear(); $('paste').value = ''; swap = false; $('swap').setAttribute('aria-pressed', 'false');
+    toast(`Added ${plural(out.length, 'song')}`);
+    if (FROM_STAGE) setTimeout(() => { location.href = '/'; }, 600);
+    else go('tip');
+  };
+  if (preview) { done(); return; }
+  const btn = $('songs-save'); btn.disabled = true; btn.textContent = 'Adding';
+  $('songs-err').textContent = '';
+  A('songs').update(u).then(done).catch(() => {
+    $('songs-err').textContent = 'Couldn\'t add your songs. Check your connection and try again.';
+    updateSongsBtn();
+  });
+}
+
+// ── STEP 3: TIP LINK ──────────────────────────────────────────
+// Fans tap a link, so build it from the handle the artist already knows.
+const SERVICES = {
+  venmo: {label:'Your Venmo username', prefix:'@', placeholder:'your-name',
+          url: h => 'https://venmo.com/u/' + h,
+          handle: v => { const m = v.match(/venmo\.com\/(?:u\/)?([^/?#\s]+)/i); return (m ? m[1] : v).replace(/^@+/, '').replace(/\s+/g, ''); },
+          ok: h => /^[A-Za-z0-9_-]{5,30}$/.test(h),
+          bad: 'Venmo usernames are 5 to 30 letters, numbers, hyphens or underscores.'},
+  cash:  {label:'Your $cashtag', prefix:'$', placeholder:'yourname',
+          url: h => 'https://cash.app/$' + h,
+          handle: v => { const m = v.match(/cash\.app\/\$?([^/?#\s]+)/i); return (m ? m[1] : v).replace(/^\$+/, '').replace(/\s+/g, ''); },
+          ok: h => /^[A-Za-z0-9_]{1,20}$/.test(h) && /[A-Za-z]/.test(h),
+          bad: 'A cashtag is up to 20 letters, numbers or underscores, with at least one letter.'},
+  other: {label:'Your tip link', prefix:'', placeholder:'paypal.me/yourname',
+          url: h => /^https?:\/\//i.test(h) ? h : 'https://' + h,
+          handle: v => v.trim(),
+          ok: h => { try { const u = new URL(/^https?:\/\//i.test(h) ? h : 'https://' + h); return u.hostname.includes('.') && u.href.length <= 300; } catch(e) { return false; } },
+          bad: 'That doesn\'t look like a web link.'}
+};
+let service = 'venmo', tipFilled = false;
+
+function enterTip(){
+  // Coming back to change it: start from the saved link.
+  if (tipFilled) { renderTip(); return; }
+  tipFilled = true;
+  const cur = act.settings.tipLink || '';
+  if (/venmo\.com/i.test(cur)) { setService('venmo'); $('tip-in').value = SERVICES.venmo.handle(cur); }
+  else if (/cash\.app/i.test(cur)) { setService('cash'); $('tip-in').value = SERVICES.cash.handle(cur); }
+  else if (cur) { setService('other'); $('tip-in').value = cur; }
+  else setService('venmo');
+  renderTip();
+}
+function setService(s){
+  const was = service; service = s;
+  document.querySelectorAll('[data-svc]').forEach(b => b.setAttribute('aria-selected', b.dataset.svc === s));
+  const svc = SERVICES[s];
+  $('tip-lbl').textContent = svc.label;
+  $('tip-prefix').textContent = svc.prefix; $('tip-prefix').hidden = !svc.prefix;
+  $('tip-in').placeholder = svc.placeholder;
+  $('tip-in').inputMode = s === 'other' ? 'url' : 'text';
+  if (was !== s) $('tip-in').value = '';
+  renderTip();
+}
+$('tip-in').addEventListener('input', function(){
+  // The field already shows @ or $, so don't let a typed one double it.
+  const p = SERVICES[service].prefix;
+  if (p && this.value.startsWith(p)) this.value = this.value.replace(/^[@$]+/, '');
+  renderTip();
+});
+function builtTip(){
+  const svc = SERVICES[service], h = svc.handle($('tip-in').value);
+  return h && svc.ok(h) ? svc.url(h) : '';
+}
+function renderTip(){
+  const svc = SERVICES[service], h = svc.handle($('tip-in').value), url = builtTip(), c = $('tip-check');
+  $('tip-save').disabled = !url; $('tip-err').textContent = '';
+  if (!h) { c.className = 'check'; c.textContent = ''; return; }
+  if (!url) { c.className = 'check bad'; c.textContent = svc.bad; return; }
+  c.className = 'check good';
+  c.innerHTML = `Fans see “${esc(tipLabel(url))}” and go to ${esc(url.replace(/^https?:\/\//, ''))}. <a class="linkbtn" style="padding:0" href="${esc(url)}" target="_blank" rel="noopener">Check it</a>`;
+}
+function saveTip(){
+  const tipLink = builtTip();
+  if (!tipLink) return;
+  const done = () => {
+    act.settings.tipLink = tipLink;
+    toast('Tip link saved');
+    if (FROM_STAGE) setTimeout(() => { location.href = '/'; }, 600);
+    else go('live');
+  };
+  if (preview) { done(); return; }
+  const btn = $('tip-save'); btn.disabled = true; btn.textContent = 'Saving';
+  A('settings').update({tipLink}).then(done).catch(() => {
+    $('tip-err').textContent = 'Couldn\'t save your tip link. Check your connection and try again.';
+  }).finally(() => { btn.textContent = 'Save tip link'; btn.disabled = !builtTip(); });
+}
+
+// ── STEP 4: YOU'RE LIVE ───────────────────────────────────────
+const slugNow = () => act.settings.slug || '';
+const qrText = () => ArtistLink.shareUrl(slugNow()) + '?from=qr';   // tells scans apart from typed links later
+
+function enterLive(){
+  const slug = slugNow();
+  $('live-link').textContent = location.host + '/' + slug;
+  $('share-btn').hidden = !navigator.share;
+  $('to-fan').href = ArtistLink.fanHref(slug);
+  $('to-stage').textContent = FROM_STAGE ? 'Back to the stage view' : 'Open the stage view';
+  const empty = !Object.keys(act.songs).length;
+  $('no-songs').hidden = !empty;
+  // With no songs the page works but fans can't request, so don't call it live yet.
+  $('live-pill').hidden = empty || FROM_STAGE;
+  if (!FROM_STAGE) {
+    const t = empty ? 'Almost live' : STEP_TEXT.live.title;
+    $('title').textContent = t; $('mini-title').textContent = t; document.title = t + ' \u00b7 ' + APP;
+  }
+  $('no-songs-btn').href = urlFor('songs');
+  $('no-songs-btn').onclick = e => { e.preventDefault(); go('songs'); };
+  $('to-stage').className = 'btn btn-full ' + (empty ? 'btn-ghost' : 'btn-spot');
+  drawQR($('qr'), qrText(), 432);
+}
+
+// Draws the QR code with a 4-module quiet zone, black on white, sharp at any size.
+function drawQR(canvas, text, size){
+  try {
+    if (typeof qrcode !== 'function') throw new Error('QR library missing');
+    const qr = qrcode(0, 'M'); qr.addData(text); qr.make();
+    const n = qr.getModuleCount(), quiet = 4, cell = size / (n + quiet * 2);
+    canvas.width = size; canvas.height = size;
+    const g = canvas.getContext('2d');
+    g.fillStyle = '#fff'; g.fillRect(0, 0, size, size);
+    g.fillStyle = '#000';
+    const at = i => Math.round((i + quiet) * cell);
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+      if (qr.isDark(r, c)) g.fillRect(at(c), at(r), at(c + 1) - at(c), at(r + 1) - at(r));
+    }
+    $('qr-card').hidden = false; $('qr-fail').hidden = true; $('qr-download').hidden = false;
+    return true;
+  } catch(e) {
+    $('qr-card').hidden = true; $('qr-fail').hidden = false; $('qr-download').hidden = true;
+    return false;
+  }
+}
+
+function downloadQR(){
+  const c = document.createElement('canvas');
+  if (!drawQR(c, qrText(), 1024)) return;
+  const name = (slugNow() || 'my-act') + '-qr.png';
+  c.toBlob(b => {
+    if (!b) { toast('Couldn\'t make the image. Try again.'); return; }
+    const url = URL.createObjectURL(b), a = document.createElement('a');
+    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }, 'image/png');
+}
+
+function copyLink(){
+  const v = ArtistLink.shareUrl(slugNow());
+  (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject()).then(() => toast('Link copied'))
+    .catch(() => toast('Couldn\'t copy. Press and hold the link to copy it.'));
+}
+function shareLink(){
+  navigator.share({title: act.settings.actName || APP, text: 'Request a song', url: ArtistLink.shareUrl(slugNow())}).catch(() => {});
+}
+</script>
+</body>
+</html>
